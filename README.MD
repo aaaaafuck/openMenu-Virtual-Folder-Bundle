@@ -38,6 +38,7 @@ Many components of both openMenu and GD MENU Card Manager have been drastically 
 - Long entry names now supported, along with marquee scrolling over those exceeding 49 characters.
 - Settings menu now has wrap-around cursor scrolling.
 - Scroll mode improvements:
+  * Jumping cursor fixed
   * Toggle index numbers in the game list (On/Off)
   * Toggle artwork display (On/Off)
 - GDEMU version is now shown in the settings menu.
@@ -51,7 +52,7 @@ Many components of both openMenu and GD MENU Card Manager have been drastically 
 
 ### Changes Since GD MENU Card Manager v2.0.1
 
-- Game list column widths adjusted for better visibility.
+- Game list column widths and window width adjusted for better visibility.
 - Version check in About window removed (with possibility of returning in the future).
 - A new "Folder" column added when building menu in "openMenu" mode, allowing users to specify virtual folder path for a disc image (e.g., `Games\RPGs\NTSC-U`).
 - Non-game disc images now supported, with a new column named "Type" added where users can select from two drop-down options: `Game` and `Other`. Note that non-game disc images are automatically assigned the `Other` value, as openMenu will check this property to decide how to initialize the GDEMU.
