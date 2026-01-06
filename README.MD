@@ -6,7 +6,7 @@ openMenu was originally written by [mrneo240](https://github.com/mrneo240/openme
 
 However due to the fragmented nature of these forks and the lack of time for each of their respective owners to contribute to the them, the author of this new openMenu build has decided to create a brand-new fork, rather than contribute to any of the existing ones. As an active member of the Dreamcast community, this author will work hard to maintain, update, and fix this new version of openMenu.
 
-To accommodate the new openMenu, a modified version of [GD MENU Card Manager](https://github.com/sonik-br/GDMENUCardManager) has been developed and included in this bundle.
+To accommodate the new openMenu, a modified version of [GD MENU Card Manager](https://github.com/sonik-br/GDMENUCardManager) has also been developed and included in this bundle.
 
 ## Table of Contents
 
