@@ -41,8 +41,8 @@ Many components of both openMenu and GD MENU Card Manager have been drastically 
 - Long entry names now supported (256 characters), along with marquee scrolling over those exceeding 49 characters.
 - Scroll mode improvements:
   * Jumping cursor fixed
-  * Toggle index numbers in the game list (On/Off)
-  * Toggle artwork display (On/Off)
+  * New setting to toggle index numbers in the game list (On/Off)
+  * New setting to toggle artwork display (On/Off)
 - Settings menu now has wrap-around cursor scrolling.
 - GDEMU firmware version and openMenu build version now shown in the settings menu.
 - VMU configuration save file is no longer written on every openMenu startup, now only when saving settings or during save file migration.
@@ -92,6 +92,7 @@ artwork_y=223
 artwork_size=210
 ```
 
+- **name:** Theme display name shown in settings menu (e.g., `MyTheme`)
 - **text_color**: Color for normal (non-selected) game names in the list  
   _Example_: `255,255,255` (white)
 - **highlight_color**: Color for the currently selected game name  
@@ -131,6 +132,8 @@ Split a 640x480px background image across these two PNGs, noting that the bottom
 
 Next, open each PNG in [PVR Tool](https://www.romhacking.net/utilities/1463/).
 
-For `BG_L.PNG`, navigate to **Tools → Set Global Index** and use the value `1025`. Next, Navigate to **File → Save** As, using `565` for "Format", `no palette` for "Palette", only `Twiddle` for "Options", and `BG_L.PVR` as the destination file name.
+For `BG_L.PNG`, navigate to **Tools → Set Global Index** and use the value `1025`. Next, Navigate to **File → Save** As, using `565` for **Format**, `no palette` for **Palette**, only `Twiddle` for **Options**, and `BG_L.PVR` as the destination file name.
 
-For `BG_R.PNG`, navigate to **Tools → Set Global Index** and use the value `1026`. Next, Navigate to **File → Save As**, using `565` for "Format", `no palette` for "Palette", and `BG_R.PVR` as the destination file name.
+For `BG_R.PNG`, navigate to **Tools → Set Global Index** and use the value `1026`. Next, Navigate to **File → Save As**, using `565` for **Format**, `no palette` for **Palette**, and `BG_R.PVR` as the destination file name.
+
+After that, open GD MENU Card Manager with GDEMU SD card inserted, then click **Save Changes**. The new theme will be accessible from the Settings menu while **Style** is set to `Folders`.
