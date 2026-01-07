@@ -17,6 +17,7 @@ To accommodate the new openMenu, a modified version of [GD MENU Card Manager](ht
   - [Changes Since openMenu v1.3.0](#changes-since-openmenu-v130)
   - [Changes Since GD MENU Card Manager v2.0.1](#changes-since-gd-menu-card-manager-v201)
 - [Usage Tutorial](#usage-tutorial)
+- [Restoring DAT Files](#restoring-dat-files)
 - [Theme Format](#theme-format)
 
 ## Current Version
@@ -35,7 +36,7 @@ Many components of both openMenu and GD MENU Card Manager have been drastically 
 ### Changes Since openMenu v1.3.0
 
 - New "Folders" Style mode, plus custom themes:
-  * 8 subfolders max
+  * Virtual folder support included eight levels of nested subfolders.
   * Complete subfolder path maximum length is 256 characters, including backslashes (e.g., `Games\JP\RPG`).
   * L Trigger + R Trigger is now a shortcut to go back one directory
 - Long entry names now supported (256 characters), along with marquee scrolling over those exceeding 49 characters.
@@ -44,12 +45,12 @@ Many components of both openMenu and GD MENU Card Manager have been drastically 
   * New setting to toggle index numbers in the game list (On/Off)
   * New setting to toggle artwork display (On/Off)
 - Settings menu now has wrap-around cursor scrolling.
-- GDEMU firmware version and openMenu build version now shown in the settings menu.
+- GDEMU firmware version and openMenu build version now shown in the Settings menu.
 - VMU configuration save file is no longer written on every openMenu startup, now only when saving settings or during save file migration.
 - Non-game discs are mounted by GDEMU instantly, returning user to BIOS for things like playing audio CDs.
 - Game ID is not sent to VM2/VMUPro/USB4MAPLE when a non-game disc is launched (e.g., an audio CD).
 - VMU beep setting disabled (feature is not implemented yet).
-- Credits updated.
+- Credits updated to include additions from this author.
 
 ### Changes Since GD MENU Card Manager v2.0.1
 
@@ -60,16 +61,21 @@ Many components of both openMenu and GD MENU Card Manager have been drastically 
 - Disc image names no longer limited to 39 characters, increased to 256 characters.
 - Disc numbers can now be customized by the user (e.g., `1/3`, `2/4`).
 - Maximum length for game IDs is now ten (instead of 9), but is customizable by changing the `ProductIdMaxLength` key inside `GDMENUCardManager.dll.config`.
+- Latest version of [CodeBreaker cheats database](https://www.dreamcast-talk.com/forum/viewtopic.php?t=17078) included by default.
 
 ## Usage Tutorial
 
 Usage documentation and tuturial video link goes here.
 
+## Restoring DAT Files
+
+New users of openMenu Virtual Folder Bundle may wish to use their existing DAT files containing artwork and metadata. To do so, navigate to the `tools\openMenu\menu_data` folder in the original GD MENU Card Manager application folder and copy `BOX.DAT`, `ICON.DAT`, and `META.DAT` to the `tools\openMenu\menu_data` folder inside the openMenu Virtual Folder Bundle's GD MENU Card Manager application folder, overwriting the defaults.
+
 ## Theme Format
 
 A separate openMenu theme format was designed for the new "Folders" Style mode.
 
-To add a new theme, navigate to the `tools\openMenu\menu_data\theme\` folder and create a folder named `FOLDERS_X`, where `X` is a number between zero and nine. Inside that folder, create a new file named `THEME.INI`.
+To add a new theme, navigate to the `tools\openMenu\menu_data\theme` folder and create a folder named `FOLDERS_X`, where `X` is a number between zero and nine. Inside that folder, create a new file named `THEME.INI`.
 
 See example and explanation of parameters below.
 
