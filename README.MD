@@ -69,7 +69,9 @@ Usage documentation and tuturial video link goes here.
 
 A separate openMenu theme format was designed for the new "Folders" Style mode.
 
-To add a new theme, navigate to the `tools\openMenu\menu_data\theme\` folder and create a folder named `FOLDERS_X`, where `X` is a number between zero and nine. Inside that folder, create a new file named `THEME.INI`. See example and explanation of parameters below.
+To add a new theme, navigate to the `tools\openMenu\menu_data\theme\` folder and create a folder named `FOLDERS_X`, where `X` is a number between zero and nine. Inside that folder, create a new file named `THEME.INI`.
+
+See example and explanation of parameters below.
 
 ```
 [THEME]
