@@ -26,7 +26,7 @@ To accommodate the new openMenu, a modified version of [GD MENU Card Manager](ht
 - [GD MENU Card Manager Usage](#gd-menu-card-manager-usage)
   - [Managing DAT Files (Artwork and Metadata)](#managing-dat-files-artwork-and-metadata)
     - [Restoring a User's Personal DAT Files](#restoring-a-users-personal-dat-files)
-    - [Managing DAT Files (Adding and Editing Artwork and Metadata)](#managing-dat-files-adding-and-editing-artwork-and-metadata)
+    - [Adding and Editing Artwork and Metadata](#adding-and-editing-artwork-and-metadata)
   - [Managing SD Card](#managing-sd-card)
     - [Initial Setup](#initial-setup)
     - [Understanding the Interface](#understanding-the-interface)
@@ -201,7 +201,7 @@ A full video tutorial has been provided on how to use **openMenu Virtual Folder 
 
 New users of **openMenu Virtual Folder Bundle** may wish to use their existing DAT files containing artwork and metadata. To do so, navigate to the `tools\openMenu\menu_data` folder in the original GD MENU Card Manager application folder and copy `BOX.DAT`, `ICON.DAT`, and `META.DAT` to the `tools\openMenu\menu_data` folder inside the **openMenu Virtual Folder Bundle**'s GD MENU Card Manager application folder, overwriting the defaults.
 
-#### Managing DAT Files (Adding and Editing Artwork and Metadata)
+#### Adding and Editing Artwork and Metadata
 
 openMenu pulls artwork and metadata about games and disc images from DAT files found in the `tools\openMenu\menu_data` folder (`BOX.DAT`, `ICON.DAT`, and `META.DAT`). It's important to note that the new "Folders" mode only leverages artwork, not metadata, for its UI.
 
