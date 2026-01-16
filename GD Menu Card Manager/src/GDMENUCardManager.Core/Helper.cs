@@ -25,7 +25,14 @@ namespace GDMENUCardManager.Core
 
         public static Task MoveDirectoryAsync(string from, string to)
         {
-            return Task.Run(() => Directory.Move(from, to));
+            return Task.Run(() =>
+            {
+                if (Directory.Exists(to))
+                {
+                    Directory.Delete(to, true);
+                }
+                Directory.Move(from, to);
+            });
         }
 
         public static Task CreateDirectoryAsync(string path)
@@ -45,7 +52,7 @@ namespace GDMENUCardManager.Core
 
         public static Task MoveFileAsync(string from, string to)
         {
-            return Task.Run(() => File.Move(from, to));
+            return Task.Run(() => File.Move(from, to, overwrite: true));
         }
 
         public static Task DeleteFileAsync(string path)

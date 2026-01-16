@@ -25,6 +25,7 @@ namespace GDMENUCardManager
         public Core.Manager Manager { get { return _ManagerInstance; } }
 
         private readonly bool showAllDrives = false;
+        private string _originalFolderValue;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -188,7 +189,7 @@ namespace GDMENUCardManager
 
             foreach (var col in dg1.Columns)
             {
-                if (col is DataGridTextColumn textCol && textCol.Header?.ToString() == "Folder")
+                if (col.Header?.ToString() == "Folder")
                     folderColumn = col;
                 else if (col is DataGridTemplateColumn templateCol && templateCol.Header?.ToString() == "Type")
                     typeColumn = col;
@@ -277,6 +278,34 @@ namespace GDMENUCardManager
             IsBusy = true;
             try
             {
+                // Check for multi-disc items without serial (openMenu only)
+                if (MenuKindSelected == MenuKind.openMenu && HasMultiDiscItemsWithoutSerial())
+                {
+                    var dialog = new WarningDialog(
+                        "One or more disc images that are part of multi-disc sets do not have a required Serial value assigned to them, which will break their display in openMenu.\n\nDo you want to proceed or return to make edits?");
+                    dialog.Owner = this;
+
+                    if (dialog.ShowDialog() != true || !dialog.Proceed)
+                    {
+                        IsBusy = false;
+                        return;
+                    }
+                }
+
+                // Check for multi-disc sets exceeding 10 discs (openMenu only)
+                if (MenuKindSelected == MenuKind.openMenu && HasMultiDiscSetsExceeding10())
+                {
+                    var dialog = new WarningDialog(
+                        "One or more multi-disc set exceeds 10 discs total, the maximum supported by openMenu.\n\nDo you want to proceed or return to make edits?");
+                    dialog.Owner = this;
+
+                    if (dialog.ShowDialog() != true || !dialog.Proceed)
+                    {
+                        IsBusy = false;
+                        return;
+                    }
+                }
+
                 if (await Manager.Save(TempFolder))
                     MessageBox.Show(this, "Done!", "Message", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -289,6 +318,55 @@ namespace GDMENUCardManager
                 IsBusy = false;
                 updateTotalSize();
             }
+        }
+
+        private bool HasMultiDiscItemsWithoutSerial()
+        {
+            return Manager.ItemList.Any(item =>
+            {
+                // Skip menu items
+                if (item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu")
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(item.ProductNumber))
+                {
+                    var disc = item.Ip?.Disc;
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        var parts = disc.Split('/');
+                        if (parts.Length == 2 &&
+                            int.TryParse(parts[1], out int totalDiscs) &&
+                            totalDiscs > 1)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            });
+        }
+
+        private bool HasMultiDiscSetsExceeding10()
+        {
+            return Manager.ItemList.Any(item =>
+            {
+                // Skip menu items
+                if (item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu")
+                    return false;
+
+                var disc = item.Ip?.Disc;
+                if (!string.IsNullOrEmpty(disc))
+                {
+                    var parts = disc.Split('/');
+                    if (parts.Length == 2 &&
+                        int.TryParse(parts[1], out int totalDiscs) &&
+                        totalDiscs > 10)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            });
         }
 
 
@@ -431,6 +509,45 @@ namespace GDMENUCardManager
             }
         }
 
+        private void ButtonBatchFolderRename_Click(object sender, RoutedEventArgs e)
+        {
+            if (Manager.ItemList.Count == 0)
+                return;
+
+            try
+            {
+                var folderCounts = Manager.GetFolderCounts();
+
+                if (folderCounts.Count == 0)
+                {
+                    MessageBox.Show("No folders found in the current game list.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var window = new BatchFolderRenameWindow(folderCounts, Manager.ItemList.Count);
+                window.Owner = this;
+
+                if (window.ShowDialog() == true && window.FolderMappings != null)
+                {
+                    var updatedCount = Manager.ApplyFolderMappings(window.FolderMappings);
+
+                    if (updatedCount > 0)
+                    {
+                        MessageBox.Show($"{updatedCount} disc image(s) updated across {window.FolderMappings.Count} folder(s).\n\nClick 'Save Changes' to write updates to SD card.",
+                                        "Folders Renamed", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("No changes were made.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void ButtonPreload_Click(object sender, RoutedEventArgs e)
         {
             if (Manager.ItemList.Count == 0)
@@ -542,6 +659,56 @@ namespace GDMENUCardManager
             IsBusy = false;
         }
 
+        private void MenuItemAssignFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // Only allow in openMenu mode
+            if (MenuKindSelected != MenuKind.openMenu)
+            {
+                MessageBox.Show("Assign Folder Path is only available in openMenu mode.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedItems = dg1.SelectedItems.Cast<GdItem>().ToList();
+
+            // Filter out menu items
+            selectedItems = selectedItems.Where(item =>
+                item.Ip?.Name != "GDMENU" && item.Ip?.Name != "openMenu").ToList();
+
+            if (selectedItems.Count == 0)
+            {
+                MessageBox.Show("No valid items selected.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Manager.InitializeKnownFolders();
+            var dialog = new AssignFolderWindow(selectedItems.Count, Manager.KnownFolders);
+            dialog.Owner = this;
+
+            if (dialog.ShowDialog() == true)
+            {
+                var folderPath = dialog.FolderPath?.Trim() ?? string.Empty;
+                foreach (var item in selectedItems)
+                {
+                    item.Folder = folderPath;
+                }
+            }
+        }
+
+        private void DataGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            // Check if this is a menu item
+            if (e.Row?.DataContext is GdItem item)
+            {
+                bool isMenuItem = item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu";
+
+                if (isMenuItem)
+                {
+                    // Prevent editing ANY cell for menu items
+                    e.Cancel = true;
+                }
+            }
+        }
+
         private async void DataGrid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.F2 && !(e.OriginalSource is TextBox))
@@ -642,6 +809,52 @@ namespace GDMENUCardManager
                 }
             }
             return false;
+        }
+
+        private void FolderComboBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            // Refresh known folders list to include any newly typed values
+            Manager.InitializeKnownFolders();
+
+            // Store the original folder value
+            if (sender is ComboBox comboBox && comboBox.DataContext is GdItem item)
+            {
+                _originalFolderValue = item.Folder;
+            }
+        }
+
+        private void FolderComboBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            // If user presses Enter on empty text, clear the folder value
+            if (e.Key == Key.Enter && sender is ComboBox comboBox && comboBox.DataContext is GdItem item)
+            {
+                if (string.IsNullOrWhiteSpace(comboBox.Text))
+                {
+                    // Clear the folder value
+                    item.Folder = string.Empty;
+
+                    // Clear the original value so LostFocus doesn't restore it
+                    _originalFolderValue = null;
+
+                    // Move focus away to exit edit mode and commit the change
+                    dg1.Focus();
+
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void FolderComboBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // If the user didn't select anything and the value is now empty, restore the original value
+            if (sender is ComboBox comboBox && comboBox.DataContext is GdItem item)
+            {
+                if (string.IsNullOrWhiteSpace(comboBox.Text) && !string.IsNullOrWhiteSpace(_originalFolderValue))
+                {
+                    item.Folder = _originalFolderValue;
+                }
+                _originalFolderValue = null;
+            }
         }
 
     }

@@ -67,6 +67,13 @@ typedef struct theme_scroll {
     int artwork_x;
     int artwork_y;
     int artwork_size;
+    int list_marquee_threshold;
+    int item_details_x;
+    int item_details_y;
+    uint32_t item_details_text_color;
+    int clock_x;
+    int clock_y;
+    uint32_t clock_text_color;
 } theme_scroll;
 
 int theme_manager_load(void);

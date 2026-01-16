@@ -12,6 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#ifdef _arch_dreamcast
+#include <arch/rtc.h>
+#endif
 
 #include <backend/gd_item.h>
 #include <backend/gd_list.h>
@@ -37,32 +42,43 @@ extern image img_dir_boxart;
 /* Theme management (from Scroll) */
 static theme_scroll default_theme = {"THEME/FOLDERS/BG_L.PVR",
                                      "THEME/FOLDERS/BG_R.PVR",
-                                     "FOLDERS",
-                                           {PVR_PACK_ARGB(255, 152, 158, 164), PVR_PACK_ARGB(255, 103, 193, 245),
-                                            PVR_PACK_ARGB(255, 164, 158, 152), PVR_PACK_ARGB(255, 103, 193, 245),
-                                            COLOR_BLACK, PVR_PACK_ARGB(255, 13, 44, 70), COLOR_WHITE},
-                                           "FONT/GDMNUFNT.PVR",
-                                           PVR_PACK_ARGB(255, 33, 56, 82),
-                                           PVR_PACK_ARGB(255, 100, 255, 225),
-                                           COLOR_WHITE,
-                                           404,
-                                           20,
-                                           20,
-                                           3,
-                                           14,
-                                           424,
-                                           85,
-                                           109,
-                                           133,
-                                           157,
-                                           181,
-                                           420,
-                                           213,
-                                           11,
-                                           77,
-                                           420,
-                                           213,
-                                           210};
+                                     "FoldersDefault",
+                                     {COLOR_WHITE,                        /* text_color: 255,255,255 */
+                                      PVR_PACK_ARGB(255, 207, 62, 17),    /* highlight_color: 207,62,17 */
+                                      COLOR_WHITE,                        /* menu_text_color: 255,255,255 */
+                                      PVR_PACK_ARGB(255, 207, 62, 17),    /* menu_highlight_color: 207,62,17 */
+                                      COLOR_BLACK,                        /* menu_bkg_color: 0,0,0 */
+                                      COLOR_WHITE,                        /* menu_bkg_border_color: 255,255,255 */
+                                      COLOR_WHITE},                       /* icon_color */
+                                     "FONT/GDMNUFNT.PVR",
+                                     PVR_PACK_ARGB(255, 75, 75, 75),      /* cursor_color: 75,75,75 */
+                                     PVR_PACK_ARGB(255, 207, 62, 17),     /* multidisc_color: 207,62,17 */
+                                     COLOR_BLACK,                         /* menu_title_color: 0,0,0 */
+                                     404,                                 /* cursor_width (calculated dynamically) */
+                                     20,                                  /* cursor_height */
+                                     18,                                  /* items_per_page (list_count) */
+                                     3,                                   /* pos_gameslist_x */
+                                     14,                                  /* pos_gameslist_y */
+                                     424,                                 /* pos_gameinfo_x */
+                                     85,                                  /* pos_gameinfo_region_y */
+                                     109,                                 /* pos_gameinfo_vga_y */
+                                     133,                                 /* pos_gameinfo_disc_y */
+                                     157,                                 /* pos_gameinfo_date_y */
+                                     181,                                 /* pos_gameinfo_version_y */
+                                     420,                                 /* pos_gametxr_x */
+                                     213,                                 /* pos_gametxr_y */
+                                     13,                                  /* list_x */
+                                     68,                                  /* list_y */
+                                     416,                                 /* artwork_x */
+                                     215,                                 /* artwork_y */
+                                     210,                                 /* artwork_size */
+                                     49,                                  /* list_marquee_threshold */
+                                     521,                                 /* item_details_x */
+                                     430,                                 /* item_details_y */
+                                     COLOR_BLACK,                         /* item_details_text_color: 0,0,0 */
+                                     623,                                 /* clock_x */
+                                     36,                                  /* clock_y */
+                                     COLOR_WHITE};                        /* clock_text_color: 255,255,255 */
 
 static theme_scroll* cur_theme = NULL;
 static theme_scroll* custom = NULL;
@@ -90,7 +106,6 @@ static uint8_t cusor_alpha = 255;
 static char cusor_step = -5;
 
 /* Marquee scrolling state */
-#define MARQUEE_DISPLAY_WIDTH 49
 #define MARQUEE_INITIAL_PAUSE_FRAMES 60
 #define MARQUEE_END_PAUSE_FRAMES 90
 
@@ -118,16 +133,11 @@ get_marquee_speed_frames(void) {
     }
 }
 
-/* L+R trigger state for back navigation */
-static bool trig_l_held = false;
-static bool trig_r_held = false;
-
 /* Display constants */
-#define ITEMS_PER_PAGE 17
 #define ITEM_SPACING 21
-#define CURSOR_WIDTH 404
 #define CURSOR_HEIGHT 20
-#define X_ADJUST_TEXT 7
+#define FONT_CHAR_WIDTH 8
+#define X_ADJUST_TEXT 4
 #define Y_ADJUST_TEXT 4
 #define Y_ADJUST_CRSR 3
 
@@ -155,7 +165,7 @@ marquee_reset(void) {
 
 static void
 marquee_update_animation(int name_length) {
-    int max_offset = name_length - MARQUEE_DISPLAY_WIDTH;
+    int max_offset = name_length - cur_theme->list_marquee_threshold;
     if (max_offset < 0) {
         max_offset = 0;
     }
@@ -209,9 +219,9 @@ draw_gamelist(void) {
     }
 
     char buffer[192];
-    int visible_items = (list_len - current_starting_index) < ITEMS_PER_PAGE
+    int visible_items = (list_len - current_starting_index) < cur_theme->items_per_page
                             ? (list_len - current_starting_index)
-                            : ITEMS_PER_PAGE;
+                            : cur_theme->items_per_page;
 
 #ifndef STANDALONE_BINARY
     int hide_multidisc = sf_multidisc[0];
@@ -235,7 +245,7 @@ draw_gamelist(void) {
         }
 
         /* Get disc info for multidisc indicator */
-        int disc_set = item->disc[2] - '0';
+        int disc_set = gd_item_disc_total(item->disc);
 
         /* Format item text - already has brackets for folders */
         snprintf(buffer, 191, "%s", item->name);
@@ -244,13 +254,15 @@ draw_gamelist(void) {
         if (is_selected) {
             uint32_t cursor_color = (cur_theme->cursor_color & 0x00FFFFFF) |
                                     PVR_PACK_ARGB(cusor_alpha, 0, 0, 0);
-            int list_x = cur_theme->list_x ? cur_theme->list_x : 11;
-            int list_y = cur_theme->list_y ? cur_theme->list_y : 77;
+            int list_x = cur_theme->list_x ? cur_theme->list_x : 12;
+            int list_y = cur_theme->list_y ? cur_theme->list_y : 68;
+            int marquee_threshold = cur_theme->list_marquee_threshold ? cur_theme->list_marquee_threshold : 49;
+            int cursor_width = (X_ADJUST_TEXT * 2) + (marquee_threshold * FONT_CHAR_WIDTH);
             draw_draw_quad(list_x, list_y + Y_ADJUST_TEXT + (i * ITEM_SPACING) - Y_ADJUST_CRSR,
-                          CURSOR_WIDTH, CURSOR_HEIGHT, cursor_color);
+                          cursor_width, CURSOR_HEIGHT, cursor_color);
 
-            /* Set highlight color for text */
-            if (hide_multidisc && (disc_set > 1)) {
+            /* Set highlight color for text (only show multidisc color if product code exists) */
+            if (hide_multidisc && (disc_set > 1) && item->product[0] != '\0') {
                 font_bmp_set_color(cur_theme->multidisc_color);
             } else {
                 font_bmp_set_color(cur_theme->colors.highlight_color);
@@ -267,26 +279,27 @@ draw_gamelist(void) {
                 if (bracket_end && bracket_end > inner_start) {
                     int inner_len = bracket_end - inner_start;
 
-                    if (inner_len > 47) {
+                    int inner_threshold = cur_theme->list_marquee_threshold - 2;
+                    if (inner_len > inner_threshold) {
                         /* Folder name needs marquee - keep brackets fixed */
-                        /* Add 2 to compensate for display width difference (47 vs 49) */
+                        /* Add 2 to compensate for display width difference (inner vs full) */
                         marquee_update_animation(inner_len + 2);
 
-                        /* Temporarily null-terminate to show 47-char window of inner text */
-                        char saved_char = inner_start[marquee_offset + 47];
-                        inner_start[marquee_offset + 47] = '\0';
+                        /* Temporarily null-terminate to show inner_threshold-char window of inner text */
+                        char saved_char = inner_start[marquee_offset + inner_threshold];
+                        inner_start[marquee_offset + inner_threshold] = '\0';
 
                         /* Build display string: [ + scrolled_text + ] */
-                        char display_buf[50];
-                        snprintf(display_buf, 50, "[%s]", &inner_start[marquee_offset]);
+                        char display_buf[128];
+                        snprintf(display_buf, sizeof(display_buf), "[%s]", &inner_start[marquee_offset]);
 
                         font_bmp_draw_main(list_x + X_ADJUST_TEXT,
                                            list_y + Y_ADJUST_TEXT + (i * ITEM_SPACING),
                                            display_buf);
 
-                        inner_start[marquee_offset + 47] = saved_char;
+                        inner_start[marquee_offset + inner_threshold] = saved_char;
                     } else {
-                        /* Folder name fits in 49 chars */
+                        /* Folder name fits within threshold */
                         font_bmp_draw_main(list_x + X_ADJUST_TEXT,
                                            list_y + Y_ADJUST_TEXT + (i * ITEM_SPACING),
                                            buffer);
@@ -297,15 +310,15 @@ draw_gamelist(void) {
                                        list_y + Y_ADJUST_TEXT + (i * ITEM_SPACING),
                                        buffer);
                 }
-            } else if (name_len > MARQUEE_DISPLAY_WIDTH) {
+            } else if (name_len > cur_theme->list_marquee_threshold) {
                 /* Non-folder long name - normal marquee */
                 marquee_update_animation(name_len);
-                char saved_char = buffer[marquee_offset + MARQUEE_DISPLAY_WIDTH];
-                buffer[marquee_offset + MARQUEE_DISPLAY_WIDTH] = '\0';
+                char saved_char = buffer[marquee_offset + cur_theme->list_marquee_threshold];
+                buffer[marquee_offset + cur_theme->list_marquee_threshold] = '\0';
                 font_bmp_draw_main(list_x + X_ADJUST_TEXT,
                                    list_y + Y_ADJUST_TEXT + (i * ITEM_SPACING),
                                    &buffer[marquee_offset]);
-                buffer[marquee_offset + MARQUEE_DISPLAY_WIDTH] = saved_char;
+                buffer[marquee_offset + cur_theme->list_marquee_threshold] = saved_char;
             } else {
                 /* Short name - display normally */
                 font_bmp_draw_main(list_x + X_ADJUST_TEXT,
@@ -318,21 +331,21 @@ draw_gamelist(void) {
 
             /* Truncate long names for non-selected items */
             int name_len = strlen(buffer);
-            if (name_len > MARQUEE_DISPLAY_WIDTH) {
+            if (name_len > cur_theme->list_marquee_threshold) {
                 /* Check if it's a folder */
                 if (buffer[0] == '[' && name_len > 2) {
-                    /* Truncate inner text at 47 chars and keep closing bracket */
-                    buffer[48] = ']';
-                    buffer[49] = '\0';
+                    /* Truncate inner text and keep closing bracket */
+                    buffer[cur_theme->list_marquee_threshold - 1] = ']';
+                    buffer[cur_theme->list_marquee_threshold] = '\0';
                 } else {
                     /* Regular truncation */
-                    buffer[MARQUEE_DISPLAY_WIDTH] = '\0';
+                    buffer[cur_theme->list_marquee_threshold] = '\0';
                 }
             }
 
             /* Draw item text */
-            int list_x = cur_theme->list_x ? cur_theme->list_x : 11;
-            int list_y = cur_theme->list_y ? cur_theme->list_y : 77;
+            int list_x = cur_theme->list_x ? cur_theme->list_x : 12;
+            int list_y = cur_theme->list_y ? cur_theme->list_y : 68;
             font_bmp_draw_main(list_x + X_ADJUST_TEXT,
                                list_y + Y_ADJUST_TEXT + (i * ITEM_SPACING),
                                buffer);
@@ -379,10 +392,170 @@ draw_gameart(void) {
         return;
     }
 
-    int artwork_x = cur_theme->artwork_x ? cur_theme->artwork_x : 420;
-    int artwork_y = cur_theme->artwork_y ? cur_theme->artwork_y : 213;
+    int artwork_x = cur_theme->artwork_x ? cur_theme->artwork_x : 415;
+    int artwork_y = cur_theme->artwork_y ? cur_theme->artwork_y : 215;
     int artwork_size = cur_theme->artwork_size ? cur_theme->artwork_size : 210;
+
     draw_draw_image(artwork_x, artwork_y, artwork_size, artwork_size, COLOR_WHITE, &txr_focus);
+}
+
+static void
+draw_item_details(void) {
+#ifndef STANDALONE_BINARY
+    if (sf_folders_item_details[0] == FOLDERS_ITEM_DETAILS_OFF) {
+        return;
+    }
+#endif
+
+    if (list_len <= 0) {
+        return;
+    }
+
+    const gd_item* item = list_current[current_selected_item];
+    char details_line[64];
+
+    int details_x = cur_theme->item_details_x ? cur_theme->item_details_x : 521;
+    int details_y = cur_theme->item_details_y ? cur_theme->item_details_y : 430;
+
+    /* Check if it's a folder */
+    if (!strncmp(item->disc, "DIR", 3)) {
+        /* Get folder stats - need to extract folder name */
+        if (!strcmp(item->name, "[..]")) {
+            /* Parent folder */
+            snprintf(details_line, sizeof(details_line), "PARENT FOLDER");
+        } else {
+            /* Extract folder name from "[FolderName]" format */
+            char folder_name[256];
+            const char* start = item->name;
+            if (start[0] == '[') {
+                start++;
+            }
+            strncpy(folder_name, start, 255);
+            folder_name[255] = '\0';
+            char* end = strrchr(folder_name, ']');
+            if (end) {
+                *end = '\0';
+            }
+
+            int num_subfolders = 0;
+            int num_games = 0;
+            if (list_folder_get_stats(folder_name, &num_subfolders, &num_games) == 0) {
+                if (num_subfolders > 0 && num_games > 0) {
+                    snprintf(details_line, sizeof(details_line), "%d %s, %d %s",
+                             num_subfolders, num_subfolders == 1 ? "SUBFOLDER" : "SUBFOLDERS",
+                             num_games, num_games == 1 ? "DISC" : "DISCS");
+                } else if (num_subfolders > 0) {
+                    snprintf(details_line, sizeof(details_line), "%d %s",
+                             num_subfolders, num_subfolders == 1 ? "SUBFOLDER" : "SUBFOLDERS");
+                } else if (num_games > 0) {
+                    snprintf(details_line, sizeof(details_line), "%d %s",
+                             num_games, num_games == 1 ? "DISC" : "DISCS");
+                } else {
+                    snprintf(details_line, sizeof(details_line), "EMPTY");
+                }
+            } else {
+                snprintf(details_line, sizeof(details_line), "UNKNOWN");
+            }
+        }
+    } else {
+        /* It's a disc - determine disc info from disc field (format: "X/Y") */
+        int current_disc = gd_item_disc_num(item->disc);
+        int total_discs = gd_item_disc_total(item->disc);
+
+        /* Treat as single disc if no product code */
+        if (item->product[0] == '\0') {
+            current_disc = total_discs = 1;
+        }
+
+#ifndef STANDALONE_BINARY
+        /* Calculate effective disc count based on grouping setting:
+         * - "Anywhere" at root level: show total disc count (all folders)
+         * - "Anywhere" in subfolders: show local disc count
+         * - "Same Folder Only": always show local disc count */
+        int effective_total = total_discs;
+        if (total_discs > 1 && sf_multidisc[0] == MULTIDISC_HIDE) {
+            const char* folder_filter = NULL;
+            if (sf_multidisc_grouping[0] == MULTIDISC_GROUPING_SAME_FOLDER || !list_folder_is_root()) {
+                folder_filter = item->folder;
+            }
+            effective_total = list_count_multidisc_filtered(item->product, folder_filter);
+        }
+
+        if (effective_total <= 1) {
+            snprintf(details_line, sizeof(details_line), "SINGLE DISC");
+        } else {
+            /* Check if multidisc is hidden (collapsed view) */
+            if (sf_multidisc[0]) {
+                snprintf(details_line, sizeof(details_line), "%d DISCS", effective_total);
+            } else {
+                snprintf(details_line, sizeof(details_line), "DISC %d OF %d", current_disc, effective_total);
+            }
+        }
+#else
+        if (total_discs <= 1) {
+            snprintf(details_line, sizeof(details_line), "SINGLE DISC");
+        } else {
+            snprintf(details_line, sizeof(details_line), "%d DISCS", total_discs);
+        }
+#endif
+    }
+
+    /* Draw single line centered on details_x */
+    int text_width = strlen(details_line) * FONT_CHAR_WIDTH;
+    int centered_x = details_x - (text_width / 2);
+
+    uint32_t text_color = cur_theme->item_details_text_color ? cur_theme->item_details_text_color : cur_theme->colors.text_color;
+    font_bmp_begin_draw();
+    font_bmp_set_color(text_color);
+    font_bmp_draw_main(centered_x, details_y, details_line);
+}
+
+static void
+draw_clock(void) {
+    /* Check if clock is disabled */
+    if (sf_clock[0] == CLOCK_OFF) {
+        return;
+    }
+
+    /* Get clock position from theme (or use defaults) */
+    int clock_x = cur_theme->clock_x ? cur_theme->clock_x : 521;
+    int clock_y = cur_theme->clock_y ? cur_theme->clock_y : 24;
+
+    /* Get current time */
+    time_t now;
+#ifdef _arch_dreamcast
+    now = rtc_unix_secs();
+#else
+    now = time(NULL);
+#endif
+    struct tm *t = localtime(&now);
+    if (!t) {
+        return;
+    }
+
+    char clock_buf[32];
+    if (sf_clock[0] == CLOCK_12HOUR) {
+        /* 12-hour format with AM/PM */
+        int hour12 = t->tm_hour % 12;
+        if (hour12 == 0) hour12 = 12;
+        const char *ampm = (t->tm_hour < 12) ? "AM" : "PM";
+        snprintf(clock_buf, sizeof(clock_buf), "%04d-%02d-%02d %02d:%02d:%02d %s",
+                 t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+                 hour12, t->tm_min, t->tm_sec, ampm);
+    } else {
+        /* 24-hour format */
+        snprintf(clock_buf, sizeof(clock_buf), "%04d-%02d-%02d %02d:%02d:%02d",
+                 t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+                 t->tm_hour, t->tm_min, t->tm_sec);
+    }
+
+    /* Draw clock right-justified (clock_x is right edge) */
+    int text_width = strlen(clock_buf) * FONT_CHAR_WIDTH;
+    int right_x = clock_x - text_width;
+
+    font_bmp_begin_draw();
+    font_bmp_set_color(cur_theme->clock_text_color);
+    font_bmp_draw_main(right_x, clock_y, clock_buf);
 }
 
 /* Navigation functions */
@@ -397,7 +570,7 @@ menu_decrement(int amount) {
         /* Single-step (UP): wrap to bottom. Page jump (L/R): stop at top */
         if (amount == 1) {
             current_selected_item = list_len - 1;
-            current_starting_index = list_len - ITEMS_PER_PAGE;
+            current_starting_index = list_len - cur_theme->items_per_page;
             if (current_starting_index < 0) {
                 current_starting_index = 0;
             }
@@ -433,7 +606,7 @@ menu_increment(int amount) {
             current_starting_index = 0;
         } else {
             current_selected_item = list_len - 1;
-            current_starting_index = list_len - ITEMS_PER_PAGE;
+            current_starting_index = list_len - cur_theme->items_per_page;
             if (current_starting_index < 0) {
                 current_starting_index = 0;
             }
@@ -442,7 +615,7 @@ menu_increment(int amount) {
         return;
     }
 
-    if (current_selected_item >= current_starting_index + ITEMS_PER_PAGE) {
+    if (current_selected_item >= current_starting_index + cur_theme->items_per_page) {
         current_starting_index += amount;
     }
 
@@ -452,7 +625,8 @@ menu_increment(int amount) {
 static void
 run_cb(void) {
     printf("run_cb: Starting\n");
-    int disc_set = list_current[current_selected_item]->disc[2] - '0';
+    const gd_item* item = list_current[current_selected_item];
+    int disc_set = gd_item_disc_total(item->disc);
     printf("run_cb: disc_set=%d\n", disc_set);
 
 #ifndef STANDALONE_BINARY
@@ -463,20 +637,35 @@ run_cb(void) {
 
     printf("run_cb: hide_multidisc=%d\n", hide_multidisc);
 
-    if (hide_multidisc && (disc_set > 1)) {
-        printf("run_cb: Showing multidisc popup\n");
-        draw_current = DRAW_MULTIDISC;
-        cb_multidisc = 1;
-        printf("run_cb: Calling popup_setup\n");
-        popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
-        printf("run_cb: Calling list_set_multidisc\n");
-        list_set_multidisc(list_current[current_selected_item]->product);
-        printf("run_cb: Multidisc setup complete\n");
-        return;
+    /* Only show multidisc chooser if product code exists */
+    if (hide_multidisc && (disc_set > 1) && item->product[0] != '\0') {
+        /* Apply grouping filter:
+         * - "Anywhere" at root level: show all discs from all folders
+         * - "Anywhere" in subfolders: show only local discs
+         * - "Same Folder Only": always show only local discs */
+        const char* folder_filter = NULL;
+#ifndef STANDALONE_BINARY
+        if (sf_multidisc_grouping[0] == MULTIDISC_GROUPING_SAME_FOLDER || !list_folder_is_root()) {
+            folder_filter = item->folder;
+        }
+#endif
+        list_set_multidisc_filtered(item->product, folder_filter);
+
+        /* Check if multiple discs remain after filtering */
+        if (list_multidisc_length() > 1) {
+            printf("run_cb: Showing multidisc popup\n");
+            draw_current = DRAW_MULTIDISC;
+            cb_multidisc = 1;
+            printf("run_cb: Calling popup_setup\n");
+            popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
+            printf("run_cb: Multidisc setup complete\n");
+            return;
+        }
+        /* Only 1 disc in this folder, fall through to launch directly */
     }
 
     printf("run_cb: Launching CB\n");
-    dreamcast_launch_cb(list_current[current_selected_item]);
+    dreamcast_launch_cb(item);
 }
 
 static void
@@ -501,12 +690,12 @@ menu_accept(void) {
             current_selected_item = restored_pos;
 
             /* Adjust viewport to show restored cursor */
-            if (current_selected_item < ITEMS_PER_PAGE) {
+            if (current_selected_item < cur_theme->items_per_page) {
                 current_starting_index = 0;
             } else {
-                current_starting_index = current_selected_item - (ITEMS_PER_PAGE / 2);
-                if (current_starting_index + ITEMS_PER_PAGE > list_len) {
-                    current_starting_index = list_len - ITEMS_PER_PAGE;
+                current_starting_index = current_selected_item - (cur_theme->items_per_page / 2);
+                if (current_starting_index + cur_theme->items_per_page > list_len) {
+                    current_starting_index = list_len - cur_theme->items_per_page;
                 }
                 if (current_starting_index < 0) {
                     current_starting_index = 0;
@@ -514,7 +703,20 @@ menu_accept(void) {
             }
         } else if (item->product[0] == 'F') {
             /* Enter folder, saving current cursor position */
-            list_folder_enter(item->slot_num, current_selected_item);
+            /* Extract folder name from "[FolderName]" format */
+            char folder_name[256];
+            const char* start = item->name;
+            if (start[0] == '[') {
+                start++;  /* Skip opening bracket */
+            }
+            strncpy(folder_name, start, 255);
+            folder_name[255] = '\0';
+            /* Remove closing bracket if present */
+            char* end = strrchr(folder_name, ']');
+            if (end) {
+                *end = '\0';
+            }
+            list_folder_enter(folder_name, current_selected_item);
 
             /* Reload list */
             list_current = list_get();
@@ -530,7 +732,7 @@ menu_accept(void) {
     }
 
     /* Check for multidisc */
-    int disc_set = item->disc[2] - '0';
+    int disc_set = gd_item_disc_total(item->disc);
 
 #ifndef STANDALONE_BINARY
     int hide_multidisc = sf_multidisc[0];
@@ -538,19 +740,42 @@ menu_accept(void) {
     int hide_multidisc = 1;
 #endif
 
-    /* Show multidisc chooser menu if needed */
-    if (hide_multidisc && (disc_set > 1)) {
-        printf("menu_accept: Showing multidisc popup for disc_set=%d\n", disc_set);
-        cb_multidisc = 0;
-        draw_current = DRAW_MULTIDISC;
-        popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
-        list_set_multidisc(item->product);
-        return;
+    /* Show multidisc chooser menu if needed (only if product code exists) */
+    if (hide_multidisc && (disc_set > 1) && item->product[0] != '\0') {
+        /* Apply grouping filter:
+         * - "Anywhere" at root level: show all discs from all folders
+         * - "Anywhere" in subfolders: show only local discs
+         * - "Same Folder Only": always show only local discs */
+        const char* folder_filter = NULL;
+#ifndef STANDALONE_BINARY
+        if (sf_multidisc_grouping[0] == MULTIDISC_GROUPING_SAME_FOLDER || !list_folder_is_root()) {
+            folder_filter = item->folder;
+        }
+#endif
+        list_set_multidisc_filtered(item->product, folder_filter);
+
+        /* Check if multiple discs remain after filtering */
+        if (list_multidisc_length() > 1) {
+            printf("menu_accept: Showing multidisc popup for disc_set=%d\n", disc_set);
+            cb_multidisc = 0;
+            draw_current = DRAW_MULTIDISC;
+            popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
+            return;
+        }
+        /* Only 1 disc in this folder, fall through to launch directly */
     }
 
     /* Launch game */
-    if (!strncmp(item->disc, "PS1", 3)) {
-        bloom_launch(item);
+    if (!strcmp(item->type, "psx")) {
+        if (is_bloom_available()) {
+            /* Show PSX launcher choice popup */
+            set_cur_game_item(item);
+            draw_current = DRAW_PSX_LAUNCHER;
+            popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
+        } else {
+            /* No Bloom available, launch directly with Bleem */
+            bleem_launch(item);
+        }
     } else {
         dreamcast_launch_disc(item);
     }
@@ -562,16 +787,14 @@ menu_cb(void) {
         return;
     }
 
-    if (!strncmp(list_current[current_selected_item]->disc, "DIR", 3)) {
-        return;
-    } else if (!strncmp(list_current[current_selected_item]->disc, "PS1", 3)) {
-        bloom_launch(list_current[current_selected_item]);
+    /* CodeBreaker only available for regular games */
+    if (strcmp(list_current[current_selected_item]->type, "game") != 0) {
         return;
     }
 
     start_cb = 0;
     draw_current = DRAW_CODEBREAKER;
-    menu_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
+    cb_menu_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
 }
 
 static void
@@ -590,10 +813,49 @@ menu_exit(void) {
         return;
     }
 
-    set_cur_game_item(list_current[current_selected_item]);
+    const gd_item* item = list_current[current_selected_item];
+    set_cur_game_item(item);
+
+    /* Check if current item is a folder (disc starts with "DIR") */
+    int is_folder = (item != NULL && !strncmp(item->disc, "DIR", 3));
 
     draw_current = DRAW_EXIT;
-    popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
+    exit_menu_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color, is_folder);
+}
+
+static void
+menu_go_back(void) {
+    if (navigate_timeout > 0) {
+        return;
+    }
+
+    /* Go back one folder level if not at root */
+    if (!list_folder_is_root()) {
+        /* Go back and restore cursor position */
+        int restored_pos = list_folder_go_back();
+
+        /* Reload list */
+        list_current = list_get();
+        list_len = list_length();
+
+        /* Restore cursor position */
+        current_selected_item = restored_pos;
+
+        /* Adjust viewport to show restored cursor */
+        if (current_selected_item < cur_theme->items_per_page) {
+            current_starting_index = 0;
+        } else {
+            current_starting_index = current_selected_item - (cur_theme->items_per_page / 2);
+            if (current_starting_index + cur_theme->items_per_page > list_len) {
+                current_starting_index = list_len - cur_theme->items_per_page;
+            }
+            if (current_starting_index < 0) {
+                current_starting_index = 0;
+            }
+        }
+
+        navigate_timeout = INPUT_TIMEOUT_INITIAL;
+    }
 }
 
 /* Input handlers */
@@ -602,48 +864,6 @@ static void
 handle_input_ui(enum control input) {
     direction_last = direction_current;
     direction_current = false;
-
-    /* Check for L+R simultaneous press using state-based detection */
-    if (INPT_TriggerPressed(TRIGGER_L) && INPT_TriggerPressed(TRIGGER_R)) {
-        /* Only process if not already handled this frame */
-        if (!trig_l_held || !trig_r_held) {
-            trig_l_held = true;
-            trig_r_held = true;
-
-            /* Go back one folder level */
-            if (!list_folder_is_root()) {
-                /* Go back and restore cursor position */
-                int restored_pos = list_folder_go_back();
-
-                /* Reload list */
-                list_current = list_get();
-                list_len = list_length();
-
-                /* Restore cursor position */
-                current_selected_item = restored_pos;
-
-                /* Adjust viewport to show restored cursor */
-                if (current_selected_item < ITEMS_PER_PAGE) {
-                    current_starting_index = 0;
-                } else {
-                    current_starting_index = current_selected_item - (ITEMS_PER_PAGE / 2);
-                    if (current_starting_index + ITEMS_PER_PAGE > list_len) {
-                        current_starting_index = list_len - ITEMS_PER_PAGE;
-                    }
-                    if (current_starting_index < 0) {
-                        current_starting_index = 0;
-                    }
-                }
-
-                navigate_timeout = INPUT_TIMEOUT_INITIAL * 2;
-            }
-        }
-        return;
-    } else {
-        /* Reset flags when triggers are released */
-        trig_l_held = false;
-        trig_r_held = false;
-    }
 
     switch (input) {
         case UP:
@@ -667,14 +887,17 @@ handle_input_ui(enum control input) {
         case A:
             menu_accept();
             break;
+        case B:
+            menu_go_back();
+            break;
         case X:
-            menu_settings();
+            menu_cb();
             break;
         case Y:
             menu_exit();
             break;
-        case B:
-            menu_cb();
+        case START:
+            menu_settings();
             break;
 
         case NONE:
@@ -686,14 +909,12 @@ handle_input_ui(enum control input) {
 /* Main UI functions */
 
 FUNCTION(UI_NAME, init) {
-    printf("FOLDERS_init: Starting\n");
     texman_clear();
     txr_empty_small_pool();
     txr_empty_large_pool();
-    printf("FOLDERS_init: Texture pools cleared\n");
 
     /* Load default FOLDERS theme from THEME.INI */
-    theme_read("/cd/THEME/FOLDERS/THEME.INI", &default_theme, 1);
+    theme_read("/cd/THEME/FOLDERS/THEME.INI", &default_theme, 2);
 
     /* Load Folder-style themes */
     if (sf_custom_theme[0]) {
@@ -710,7 +931,6 @@ FUNCTION(UI_NAME, init) {
         cur_theme = (theme_scroll*)&default_theme;
     }
 
-    printf("FOLDERS_init: Loading backgrounds\n");
     unsigned int temp = texman_create();
     draw_load_texture_buffer(cur_theme->bg_left, &txr_bg_left, texman_get_tex_data(temp));
     texman_reserve_memory(txr_bg_left.width, txr_bg_left.height, 2 /* 16Bit */);
@@ -720,25 +940,16 @@ FUNCTION(UI_NAME, init) {
     texman_reserve_memory(txr_bg_right.width, txr_bg_right.height, 2 /* 16Bit */);
 
     /* Initialize font */
-    printf("FOLDERS_init: Initializing font\n");
     font_bmp_init(cur_theme->font, 8, 16);
-    printf("FOLDERS_init: Font initialized\n");
-
-    printf("FOLDERS: Init complete\n");
 }
 
 FUNCTION(UI_NAME, setup) {
-    printf("FOLDERS_setup: Starting\n");
-
     /* Set to root folder view */
     list_set_folder_root();
 
-    printf("FOLDERS_setup: Getting list pointers\n");
     /* Get list pointers */
     list_current = list_get();
     list_len = list_length();
-
-    printf("FOLDERS_setup: Got %d items\n", list_len);
 
     /* Reset navigation state */
     current_selected_item = 0;
@@ -749,14 +960,9 @@ FUNCTION(UI_NAME, setup) {
     cusor_alpha = 255;
     cusor_step = -5;
 
-    trig_l_held = false;
-    trig_r_held = false;
-
     /* Initialize marquee state */
     marquee_reset();
     marquee_last_selected = -1;
-
-    printf("FOLDERS: Setup complete, %d items\n", list_len);
 }
 
 FUNCTION(UI_NAME, drawOP) {
@@ -764,9 +970,11 @@ FUNCTION(UI_NAME, drawOP) {
 }
 
 FUNCTION(UI_NAME, drawTR) {
-    /* Always draw the game list and artwork first */
+    /* Always draw the game list, artwork, and item details first */
     draw_gamelist();
     draw_gameart();
+    draw_item_details();
+    draw_clock();
 
     /* Then draw popups on top */
     switch (draw_current) {
@@ -784,6 +992,9 @@ FUNCTION(UI_NAME, drawTR) {
         } break;
         case DRAW_CODEBREAKER: {
             draw_codebreaker_tr();
+        } break;
+        case DRAW_PSX_LAUNCHER: {
+            draw_psx_launcher_tr();
         } break;
         default:
         case DRAW_UI: {
@@ -813,6 +1024,9 @@ FUNCTION_INPUT(UI_NAME, handle_input) {
             if (start_cb) {
                 run_cb();
             }
+        } break;
+        case DRAW_PSX_LAUNCHER: {
+            handle_input_psx_launcher(input_current);
         } break;
         default:
         case DRAW_UI: {

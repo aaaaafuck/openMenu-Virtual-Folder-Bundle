@@ -5,7 +5,7 @@
   },
   "projects": {
     "Z:\\dc\\gdemu\\OPENMENU\\GDMENUCardManager [Virtual Folders]\\src\\GDMENUCardManager.AvaloniaUI\\GDMENUCardManager.AvaloniaUI.csproj": {
-      "version": "1.0.0",
+      "version": "1.1.0",
       "restore": {
         "projectUniqueName": "Z:\\dc\\gdemu\\OPENMENU\\GDMENUCardManager [Virtual Folders]\\src\\GDMENUCardManager.AvaloniaUI\\GDMENUCardManager.AvaloniaUI.csproj",
         "projectName": "GDMENUCardManager",
@@ -120,7 +120,7 @@
       }
     },
     "Z:\\dc\\gdemu\\OPENMENU\\GDMENUCardManager [Virtual Folders]\\src\\GDMENUCardManager.Core\\GDMENUCardManager.Core.csproj": {
-      "version": "1.0.0",
+      "version": "1.1.0",
       "restore": {
         "projectUniqueName": "Z:\\dc\\gdemu\\OPENMENU\\GDMENUCardManager [Virtual Folders]\\src\\GDMENUCardManager.Core\\GDMENUCardManager.Core.csproj",
         "projectName": "GDMENUCardManager.Core",

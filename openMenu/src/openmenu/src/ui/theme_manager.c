@@ -178,8 +178,6 @@ read_scroll_theme_ini(void* user, const char* section, const char* name, const c
             new_theme->cursor_width = atoi(value);
         } else if (strcasecmp(name, "CURSOR_HEIGHT") == 0) {
             new_theme->cursor_height = atoi(value);
-        } else if (strcasecmp(name, "ITEMS_PER_PAGE") == 0) {
-            new_theme->items_per_page = atoi(value);
         } else if (strcasecmp(name, "POS_GAMESLIST_X") == 0) {
             new_theme->pos_gameslist_x = atoi(value);
         } else if (strcasecmp(name, "POS_GAMESLIST_Y") == 0) {
@@ -200,16 +198,6 @@ read_scroll_theme_ini(void* user, const char* section, const char* name, const c
             new_theme->pos_gametxr_x = atoi(value);
         } else if (strcasecmp(name, "POS_GAMETXR_Y") == 0) {
             new_theme->pos_gametxr_y = atoi(value);
-        } else if (strcasecmp(name, "LIST_X") == 0) {
-            new_theme->list_x = atoi(value);
-        } else if (strcasecmp(name, "LIST_Y") == 0) {
-            new_theme->list_y = atoi(value);
-        } else if (strcasecmp(name, "ARTWORK_X") == 0) {
-            new_theme->artwork_x = atoi(value);
-        } else if (strcasecmp(name, "ARTWORK_Y") == 0) {
-            new_theme->artwork_y = atoi(value);
-        } else if (strcasecmp(name, "ARTWORK_SIZE") == 0) {
-            new_theme->artwork_size = atoi(value);
         } else {
             printf("Unknown theme value: %s\n", name);
         }
@@ -220,29 +208,94 @@ read_scroll_theme_ini(void* user, const char* section, const char* name, const c
     return 1;
 }
 
+static int
+read_folder_theme_ini(void* user, const char* section, const char* name, const char* value) {
+    theme_scroll* new_theme = (theme_scroll*)user;
+
+    /* Handle folder-specific parameters */
+    if (strcasecmp(section, "THEME") == 0) {
+        if (strcasecmp(name, "LIST_X") == 0) {
+            new_theme->list_x = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "LIST_Y") == 0) {
+            new_theme->list_y = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "LIST_COUNT") == 0) {
+            new_theme->items_per_page = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "LIST_MARQUEE_THRESHOLD") == 0) {
+            new_theme->list_marquee_threshold = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "ARTWORK_X") == 0) {
+            new_theme->artwork_x = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "ARTWORK_Y") == 0) {
+            new_theme->artwork_y = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "ARTWORK_SIZE") == 0) {
+            new_theme->artwork_size = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "ITEM_DETAILS_X") == 0) {
+            new_theme->item_details_x = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "ITEM_DETAILS_Y") == 0) {
+            new_theme->item_details_y = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "ITEM_DETAILS_TEXT_COLOR") == 0) {
+            new_theme->item_details_text_color = str2argb(value);
+            return 1;
+        } else if (strcasecmp(name, "CLOCK_X") == 0) {
+            new_theme->clock_x = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "CLOCK_Y") == 0) {
+            new_theme->clock_y = atoi(value);
+            return 1;
+        } else if (strcasecmp(name, "CLOCK_TEXT_COLOR") == 0) {
+            new_theme->clock_text_color = str2argb(value);
+            return 1;
+        }
+    }
+
+    /* Fall through to scroll theme parser for common parameters */
+    return read_scroll_theme_ini(user, section, name, value);
+}
+
 int
 theme_read(const char* filename, void* theme, int type) {
     file_t ini = fs_open(filename, O_RDONLY);
     if (ini == -1) {
         printf("INI:Error opening %s!\n", filename);
         fflush(stdout);
-        /*exit or something */
         return -1;
     }
 
     size_t ini_size = filelength(ini);
-    char* ini_buffer = malloc(ini_size);
+    char* ini_buffer = malloc(ini_size + 1);  /* +1 for null terminator */
     if (!ini_buffer) {
         printf("%s no free memory\n", __func__);
+        fs_close(ini);
         return -1;
     }
-    fs_read(ini, ini_buffer, ini_size);
+    ssize_t bytes_read = fs_read(ini, ini_buffer, ini_size);
     fs_close(ini);
 
-    if (ini_parse_string(ini_buffer, type == 0 ? read_theme_ini : read_scroll_theme_ini, theme) < 0) {
+    /* Null-terminate the buffer for ini_parse_string */
+    ini_buffer[bytes_read > 0 ? (size_t)bytes_read : 0] = '\0';
+
+    int (*parser)(void*, const char*, const char*, const char*);
+    if (type == 0) {
+        parser = read_theme_ini;
+    } else if (type == 2) {
+        parser = read_folder_theme_ini;
+    } else {
+        parser = read_scroll_theme_ini;
+    }
+
+    int parse_result = ini_parse_string(ini_buffer, parser, theme);
+    if (parse_result < 0) {
         printf("INI:Error Parsing %s!\n", filename);
         fflush(stdout);
-        /*exit or something */
+        free(ini_buffer);
         return -1;
     }
     free(ini_buffer);
@@ -341,7 +394,7 @@ load_themes(char* basePath) {
 
                 /* load INI if available, for name & colors */
                 strcat(path, "THEME.INI");
-                theme_read(path, &folder_themes[num_folder_themes], 1);
+                theme_read(path, &folder_themes[num_folder_themes], 2);
 
                 num_folder_themes++;
             }

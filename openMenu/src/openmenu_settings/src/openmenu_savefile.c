@@ -1,6 +1,7 @@
 #ifdef _arch_dreamcast
 #include <crayon_savefile/peripheral.h>
 #include <dc/maple/vmu.h>
+#include <kos/thread.h>
 #endif
 
 #include <stdbool.h>
@@ -12,32 +13,39 @@
 /* Images and such */
 #if __has_include("openmenu_lcd.h") && __has_include("openmenu_pal.h") && __has_include("openmenu_vmu.h")
 #include "openmenu_lcd.h"
+#include "openmenu_lcd_save_ok.h"
 #include "openmenu_pal.h"
 #include "openmenu_vmu.h"
 
-#define OPENMENU_ICON  (openmenu_icon)
-#define OPENMENU_LCD   (openmenu_lcd)
-#define OPENMENU_PAL   (openmenu_pal)
-#define OPENMENU_ICONS (1)
+#define OPENMENU_ICON         (openmenu_icon)
+#define OPENMENU_LCD          (openmenu_lcd)
+#define OPENMENU_LCD_SAVE_OK  (openmenu_lcd_save_ok)
+#define OPENMENU_PAL          (openmenu_pal)
+#define OPENMENU_ICONS        (1)
 #else
-#define OPENMENU_ICON  (NULL)
-#define OPENMENU_LCD   (NULL)
-#define OPENMENU_PAL   (NULL)
-#define OPENMENU_ICONS (0)
+#define OPENMENU_ICON         (NULL)
+#define OPENMENU_LCD          (NULL)
+#define OPENMENU_LCD_SAVE_OK  (NULL)
+#define OPENMENU_PAL          (NULL)
+#define OPENMENU_ICONS        (0)
 #endif
 
 static crayon_savefile_details_t savefile_details;
 static bool savefile_was_migrated = false;
+#ifdef _arch_dreamcast
+static uint8_t vmu_screens_bitmap = 0;
+#endif
 
 void
 savefile_defaults() {
     sf_region[0] = REGION_NTSC_U;
     sf_aspect[0] = ASPECT_NORMAL;
-    sf_ui[0] = UI_LINE_DESC;
+    sf_ui[0] = UI_FOLDERS;
     sf_sort[0] = SORT_DEFAULT;
     sf_filter[0] = FILTER_ALL;
     sf_beep[0] = BEEP_ON;
     sf_multidisc[0] = MULTIDISC_SHOW;
+    sf_multidisc_grouping[0] = MULTIDISC_GROUPING_ANYWHERE;
     sf_custom_theme[0] = THEME_OFF;
     sf_custom_theme_num[0] = THEME_0;
     sf_bios_3d[0] = BIOS_3D_OFF;
@@ -45,6 +53,11 @@ savefile_defaults() {
     sf_scroll_index[0] = SCROLL_INDEX_ON;
     sf_folders_art[0] = FOLDERS_ART_ON;
     sf_marquee_speed[0] = MARQUEE_SPEED_MEDIUM;
+    sf_disc_details[0] = DISC_DETAILS_SHOW;
+    sf_folders_item_details[0] = FOLDERS_ITEM_DETAILS_ON;
+    sf_clock[0] = CLOCK_12HOUR;
+    sf_vm2_send_all[0] = VM2_SEND_ALL;
+    sf_boot_mode[0] = BOOT_MODE_FULL;
 }
 
 //THIS IS USED BY THE CRAYON SAVEFILE DESERIALISER WHEN LOADING A SAVE FROM AN OLDER VERSION
@@ -72,6 +85,24 @@ update_savefile(void** loaded_variables, crayon_savefile_version_t loaded_versio
     if (loaded_version < SFV_MARQUEE_SPEED) {
         sf_marquee_speed[0] = MARQUEE_SPEED_MEDIUM;
     }
+    if (loaded_version < SFV_DISC_DETAILS) {
+        sf_disc_details[0] = DISC_DETAILS_SHOW;
+    }
+    if (loaded_version < SFV_FOLDERS_ITEM_DETAILS) {
+        sf_folders_item_details[0] = FOLDERS_ITEM_DETAILS_ON;
+    }
+    if (loaded_version < SFV_CLOCK) {
+        sf_clock[0] = CLOCK_12HOUR;
+    }
+    if (loaded_version < SFV_MULTIDISC_GROUPING) {
+        sf_multidisc_grouping[0] = MULTIDISC_GROUPING_ANYWHERE;
+    }
+    if (loaded_version < SFV_VM2_SEND_ALL) {
+        sf_vm2_send_all[0] = VM2_SEND_ALL;
+    }
+    if (loaded_version < SFV_BOOT_MODE) {
+        sf_boot_mode[0] = BOOT_MODE_FULL;
+    }
     return 0;
 }
 
@@ -97,7 +128,7 @@ setup_savefile(crayon_savefile_details_t* details) {
     }
 
 #if defined(_arch_dreamcast) && OPENMENU_ICONS
-    uint8_t vmu_screens_bitmap = crayon_peripheral_dreamcast_get_screens();
+    vmu_screens_bitmap = crayon_peripheral_dreamcast_get_screens();
 
     crayon_peripheral_vmu_display_icon(vmu_screens_bitmap, OPENMENU_LCD);
 
@@ -128,6 +159,18 @@ setup_savefile(crayon_savefile_details_t* details) {
     crayon_savefile_add_variable(details, &sf_folders_art, sf_folders_art_type, sf_folders_art_length, SFV_FOLDERS_ART,
                                  VAR_STILL_PRESENT);
     crayon_savefile_add_variable(details, &sf_marquee_speed, sf_marquee_speed_type, sf_marquee_speed_length, SFV_MARQUEE_SPEED,
+                                 VAR_STILL_PRESENT);
+    crayon_savefile_add_variable(details, &sf_disc_details, sf_disc_details_type, sf_disc_details_length, SFV_DISC_DETAILS,
+                                 VAR_STILL_PRESENT);
+    crayon_savefile_add_variable(details, &sf_folders_item_details, sf_folders_item_details_type, sf_folders_item_details_length, SFV_FOLDERS_ITEM_DETAILS,
+                                 VAR_STILL_PRESENT);
+    crayon_savefile_add_variable(details, &sf_clock, sf_clock_type, sf_clock_length, SFV_CLOCK,
+                                 VAR_STILL_PRESENT);
+    crayon_savefile_add_variable(details, &sf_multidisc_grouping, sf_multidisc_grouping_type, sf_multidisc_grouping_length, SFV_MULTIDISC_GROUPING,
+                                 VAR_STILL_PRESENT);
+    crayon_savefile_add_variable(details, &sf_vm2_send_all, sf_vm2_send_all_type, sf_vm2_send_all_length, SFV_VM2_SEND_ALL,
+                                 VAR_STILL_PRESENT);
+    crayon_savefile_add_variable(details, &sf_boot_mode, sf_boot_mode_type, sf_boot_mode_length, SFV_BOOT_MODE,
                                  VAR_STILL_PRESENT);
 
     if (crayon_savefile_solidify(details)) {
@@ -205,11 +248,31 @@ vmu_beep(int8_t save_device_id, uint32_t beep) {
     return 0;
 }
 
+#if defined(_arch_dreamcast) && OPENMENU_ICONS
+/* Thread function to restore VMU icon after delay */
+static void*
+vmu_icon_restore_thread(void* param) {
+    (void)param;
+    thd_sleep(2000);  /* 2 seconds */
+    crayon_peripheral_vmu_display_icon(vmu_screens_bitmap, OPENMENU_LCD);
+    return NULL;
+}
+#endif
+
 int8_t
 savefile_save() {
     settings_sanitize();
     vmu_beep(savefile_details.save_device_id, 0x000065f0); // Turn on beep (if enabled)
-    crayon_savefile_save_savedata(&savefile_details);
+    int8_t result = crayon_savefile_save_savedata(&savefile_details);
     vmu_beep(savefile_details.save_device_id, 0x00000000); // Turn off beep (if enabled)
-    return 0;
+
+#if defined(_arch_dreamcast) && OPENMENU_ICONS
+    /* On successful save, show "SAVE OK" icon and spawn thread to restore after 2 seconds */
+    if (result == 0 && vmu_screens_bitmap != 0) {
+        crayon_peripheral_vmu_display_icon(vmu_screens_bitmap, OPENMENU_LCD_SAVE_OK);
+        thd_create(0, vmu_icon_restore_thread, NULL);
+    }
+#endif
+
+    return result;
 }

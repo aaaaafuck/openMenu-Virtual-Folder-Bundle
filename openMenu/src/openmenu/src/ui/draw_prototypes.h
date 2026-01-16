@@ -65,6 +65,10 @@ void bleem_launch(const struct gd_item* disc);
 void dreamcast_launch_disc(const struct gd_item* disc);
 void dreamcast_launch_cb(const struct gd_item* disc);
 
+/* PSX launcher support */
+void check_bloom_available(void);
+int is_bloom_available(void);
+
 /* z depth */
 float z_get(void);
 float z_set_cond(float z);

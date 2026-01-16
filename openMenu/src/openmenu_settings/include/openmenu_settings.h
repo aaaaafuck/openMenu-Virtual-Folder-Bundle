@@ -31,6 +31,10 @@ extern uint8_t* sf_multidisc;
 #define sf_multidisc_type   CRAYON_TYPE_UINT8
 #define sf_multidisc_length 1
 
+extern uint8_t* sf_multidisc_grouping;
+#define sf_multidisc_grouping_type   CRAYON_TYPE_UINT8
+#define sf_multidisc_grouping_length 1
+
 extern uint8_t* sf_custom_theme;
 #define sf_custom_theme_type   CRAYON_TYPE_UINT8
 #define sf_custom_theme_length 1
@@ -59,6 +63,26 @@ extern uint8_t* sf_marquee_speed;
 #define sf_marquee_speed_type   CRAYON_TYPE_UINT8
 #define sf_marquee_speed_length 1
 
+extern uint8_t* sf_disc_details;
+#define sf_disc_details_type   CRAYON_TYPE_UINT8
+#define sf_disc_details_length 1
+
+extern uint8_t* sf_folders_item_details;
+#define sf_folders_item_details_type   CRAYON_TYPE_UINT8
+#define sf_folders_item_details_length 1
+
+extern uint8_t* sf_clock;
+#define sf_clock_type   CRAYON_TYPE_UINT8
+#define sf_clock_length 1
+
+extern uint8_t* sf_vm2_send_all;
+#define sf_vm2_send_all_type   CRAYON_TYPE_UINT8
+#define sf_vm2_send_all_length 1
+
+extern uint8_t* sf_boot_mode;
+#define sf_boot_mode_type   CRAYON_TYPE_UINT8
+#define sf_boot_mode_length 1
+
 enum savefile_version {
     SFV_INITIAL = 1,
     SFV_BIOS_3D,
@@ -66,6 +90,12 @@ enum savefile_version {
     SFV_SCROLL_INDEX,
     SFV_FOLDERS_ART,
     SFV_MARQUEE_SPEED,
+    SFV_DISC_DETAILS,
+    SFV_FOLDERS_ITEM_DETAILS,
+    SFV_CLOCK,
+    SFV_MULTIDISC_GROUPING,
+    SFV_VM2_SEND_ALL,
+    SFV_BOOT_MODE,
     SFV_LATEST_PLUS_ONE //DON'T REMOVE
 };
 
@@ -92,11 +122,12 @@ typedef enum CFG_UI { UI_START = 0, UI_LINE_DESC = UI_START, UI_GRID3, UI_SCROLL
 
 typedef enum CFG_SORT {
     SORT_START = 0,
-    SORT_DEFAULT = SORT_START,
+    SORT_DEFAULT = SORT_START,  /* Now means Alphabetical */
     SORT_NAME,
     SORT_DATE,
     SORT_PRODUCT,
-    SORT_END = SORT_PRODUCT
+    SORT_SD_CARD,               /* SD Card Order (slot order) */
+    SORT_END = SORT_SD_CARD
 } CFG_SORT;
 
 typedef enum CFG_FILTER {
@@ -129,6 +160,13 @@ typedef enum CFG_MULTIDISC {
     MULTIDISC_HIDE,
     MULTIDISC_END = MULTIDISC_HIDE
 } CFG_MULTIDISC;
+
+typedef enum CFG_MULTIDISC_GROUPING {
+    MULTIDISC_GROUPING_START = 0,
+    MULTIDISC_GROUPING_ANYWHERE = MULTIDISC_GROUPING_START,
+    MULTIDISC_GROUPING_SAME_FOLDER,
+    MULTIDISC_GROUPING_END = MULTIDISC_GROUPING_SAME_FOLDER
+} CFG_MULTIDISC_GROUPING;
 
 typedef enum CFG_CUSTOM_THEME {
     THEME_START = 0,
@@ -188,9 +226,48 @@ typedef enum CFG_MARQUEE_SPEED {
     MARQUEE_SPEED_END = MARQUEE_SPEED_FAST
 } CFG_MARQUEE_SPEED;
 
+typedef enum CFG_DISC_DETAILS {
+    DISC_DETAILS_START = 0,
+    DISC_DETAILS_SHOW = DISC_DETAILS_START,
+    DISC_DETAILS_HIDE,
+    DISC_DETAILS_END = DISC_DETAILS_HIDE
+} CFG_DISC_DETAILS;
+
+typedef enum CFG_FOLDERS_ITEM_DETAILS {
+    FOLDERS_ITEM_DETAILS_START = 0,
+    FOLDERS_ITEM_DETAILS_OFF = FOLDERS_ITEM_DETAILS_START,
+    FOLDERS_ITEM_DETAILS_ON,
+    FOLDERS_ITEM_DETAILS_END = FOLDERS_ITEM_DETAILS_ON
+} CFG_FOLDERS_ITEM_DETAILS;
+
+typedef enum CFG_CLOCK {
+    CLOCK_START = 0,
+    CLOCK_12HOUR = CLOCK_START,
+    CLOCK_24HOUR,
+    CLOCK_OFF,
+    CLOCK_END = CLOCK_OFF
+} CFG_CLOCK;
+
+typedef enum CFG_VM2_SEND_ALL {
+    VM2_SEND_START = 0,
+    VM2_SEND_ALL = VM2_SEND_START,
+    VM2_SEND_FIRST,
+    VM2_SEND_OFF,
+    VM2_SEND_END = VM2_SEND_OFF
+} CFG_VM2_SEND_ALL;
+
+typedef enum CFG_BOOT_MODE {
+    BOOT_MODE_START = 0,
+    BOOT_MODE_FULL = BOOT_MODE_START,  // boot_intro=1, sega_license=1
+    BOOT_MODE_LICENSE,                  // boot_intro=0, sega_license=1
+    BOOT_MODE_ANIMATION,                // boot_intro=1, sega_license=0
+    BOOT_MODE_FAST,                     // boot_intro=0, sega_license=0
+    BOOT_MODE_END = BOOT_MODE_FAST
+} CFG_BOOT_MODE;
+
 typedef CFG_REGION region;
 
-enum draw_state { DRAW_UI = 0, DRAW_MULTIDISC, DRAW_EXIT, DRAW_MENU, DRAW_CREDITS, DRAW_CODEBREAKER };
+enum draw_state { DRAW_UI = 0, DRAW_MULTIDISC, DRAW_EXIT, DRAW_MENU, DRAW_CREDITS, DRAW_CODEBREAKER, DRAW_PSX_LAUNCHER };
 
 void settings_sanitize();
 

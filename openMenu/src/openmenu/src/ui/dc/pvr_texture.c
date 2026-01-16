@@ -90,6 +90,11 @@ pvr_get_texture_size(const void* input, uint32_t* w, uint32_t* h, uint32_t* txrF
     *h = texH;
     *txrFormat = texFormat | texColor;
 
+    printf("PVR: header bytes [%02x %02x %02x %02x] -> w=%d h=%d size=%d\n",
+           texBuf[PVR_HDR_SIZE - 4], texBuf[PVR_HDR_SIZE - 3],
+           texBuf[PVR_HDR_SIZE - 2], texBuf[PVR_HDR_SIZE - 1],
+           texW, texH, txr_size);
+
     return txr_size;
 }
 

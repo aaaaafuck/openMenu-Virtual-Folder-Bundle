@@ -1,5 +1,5 @@
 ﻿GDMENUCardManager
-1.0.0.0
+1.1.0.0
 
 winexe
 C#
@@ -10,11 +10,11 @@ none
 false
 TRACE;UNMANAGED;RELEASE;NET;NET6_0;NETCOREAPP
 Z:\dc\gdemu\OPENMENU\GDMENUCardManager [Virtual Folders]\src\GDMENUCardManager\App.xaml
-71417145950
+10-1287506493
 
-52806668377
+571176649858
 206621972271
-AboutWindow.xaml;CopyNameWindow.xaml;GdiShrinkWindow.xaml;InfoWindow.xaml;MainWindow.xaml;ProgressWindow.xaml;TextWindow.xaml;
+AboutWindow.xaml;AssignFolderWindow.xaml;BatchFolderRenameWindow.xaml;CopyNameWindow.xaml;GdiShrinkWindow.xaml;InfoWindow.xaml;MainWindow.xaml;ProgressWindow.xaml;TextWindow.xaml;WarningDialog.xaml;
 
 False
 

@@ -12,7 +12,13 @@ namespace GDMENUCardManager.Converter
             if (value == null)
                 return Binding.DoNothing;
 
-            return (bool)value ? Visibility.Visible : Visibility.Collapsed;
+            bool boolValue = (bool)value;
+            bool inverse = parameter != null && parameter.ToString() == "Inverse";
+
+            if (inverse)
+                boolValue = !boolValue;
+
+            return boolValue ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

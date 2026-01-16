@@ -16,6 +16,7 @@
     <ResourceDictionary>
       <conv:ByteSizeToStringConverter x:Key="ByteSizeToString"/>
       <conv:EnumToBoolConverter x:Key="EnumToBool"/>
+      <conv:IsNotMenuItemConverter x:Key="IsNotMenuItem"/>
 
       <!--icons from materialdesignicons.com-->
       <Viewbox x:Key="ViewOpenFolder" Width="18" Height="18">
@@ -135,7 +136,7 @@
           </Button>
         </Grid>
         
-        <DataGrid Name="dg1" Items="{Binding Manager.ItemList, Mode=OneTime}" IsEnabled="{Binding Path=!IsBusy, Mode=OneWay}" AutoGenerateColumns="False" CanUserResizeColumns="False" CanUserSortColumns="False" CanUserReorderColumns="False" KeyDown="GridOnKeyDown" RowBackground="{DynamicResource ThemeBackgroundBrush}" AlternatingRowBackground="{DynamicResource ThemeBackgroundBrush}" GridLinesVisibility="All" BorderBrush="Black" BorderThickness="1" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
+        <DataGrid Name="dg1" Items="{Binding Manager.ItemList, Mode=OneTime}" IsEnabled="{Binding Path=!IsBusy, Mode=OneWay}" AutoGenerateColumns="False" CanUserResizeColumns="False" CanUserSortColumns="False" CanUserReorderColumns="False" KeyDown="GridOnKeyDown" BeginningEdit="DataGrid_BeginningEdit" RowBackground="{DynamicResource ThemeBackgroundBrush}" AlternatingRowBackground="{DynamicResource ThemeBackgroundBrush}" GridLinesVisibility="All" BorderBrush="Black" BorderThickness="1" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
           <DataGrid.Styles>
             <Style Selector="DataGridRow">
               <Setter Property="ContextMenu" Value="{DynamicResource rowmenu}"/>
@@ -152,11 +153,13 @@
                 <Separator/>
                 <MenuItem Header="Rename" Click="MenuItemRename_Click" CommandParameter="{Binding}"/>
                 <MenuItem Header="Sentence Case" Click="MenuItemRenameSentence_Click" CommandParameter="{Binding}"/>
-                <MenuItem Header="Automatically Rename">
+                <MenuItem Header="Automatically Rename Title">
                   <MenuItem Header="Using IP.BIN _info" Click="MenuItemRenameIP_Click" CommandParameter="{Binding}"/>
-                  <MenuItem Header="Using Folder name" Click="MenuItemRenameFolder_Click" CommandParameter="{Binding}"/>
-                  <MenuItem Header="Using File name" Click="MenuItemRenameFile_Click" CommandParameter="{Binding}"/>
+                  <MenuItem Header="Using its folder name on computer" Click="MenuItemRenameFolder_Click" CommandParameter="{Binding}" IsEnabled="{Binding IsNotOnSdCard}"/>
+                  <MenuItem Header="Using disc image's base file name" Click="MenuItemRenameFile_Click" CommandParameter="{Binding}" IsEnabled="{Binding IsNotOnSdCard}"/>
                 </MenuItem>
+                <Separator/>
+                <MenuItem Header="Assign Folder Path" Click="MenuItemAssignFolder_Click" CommandParameter="{Binding}"/>
               </ContextMenu.Items>
             </ContextMenu>
           </DataGrid.Resources>
@@ -189,10 +192,54 @@
               </DataGridTextColumn.Header>
             </DataGridTextColumn>
             <DataGridTextColumn Header="Size" Width="67" IsReadOnly="True" Binding="{Binding Length, Mode=OneWay, Converter={StaticResource ByteSizeToString}}"/>
-            <DataGridTextColumn Header="Title" Width="2*" Binding="{Binding Name}"/>
-            <DataGridTextColumn Header="Folder" Width="1*" Binding="{Binding Folder}" IsVisible="False"/>
-            <DataGridTextColumn Header="Serial" Width="75" Binding="{Binding ProductNumber}"/>
-            <DataGridTextColumn Header="Disc" Width="45" IsReadOnly="True" Binding="{Binding Ip.Disc, Mode=TwoWay}"/>
+            <DataGridTemplateColumn Header="Title" Width="2*">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Name, Mode=OneWay}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate>
+                  <TextBox Text="{Binding Name, Mode=TwoWay}" Foreground="Black"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Folder" Width="1*" IsVisible="False">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Folder, Mode=OneWay}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate>
+                  <TextBox Text="{Binding Folder, Mode=TwoWay}" IsEnabled="{Binding Path=., Converter={StaticResource IsNotMenuItem}}" Foreground="Black"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Serial" Width="75">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding ProductNumber, Mode=OneWay}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate>
+                  <TextBox Text="{Binding ProductNumber, Mode=TwoWay}" Foreground="Black"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Disc" Width="45">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Ip.Disc, Mode=OneWay}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate>
+                  <TextBox Text="{Binding Ip.Disc, Mode=TwoWay}" Foreground="Black"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
+            </DataGridTemplateColumn>
             <DataGridTemplateColumn Header="Type" Width="80" IsVisible="False">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
@@ -201,7 +248,7 @@
               </DataGridTemplateColumn.CellTemplate>
               <DataGridTemplateColumn.CellEditingTemplate>
                 <DataTemplate>
-                  <ComboBox Items="{x:Static local:MainWindow.DiscTypes}" SelectedItem="{Binding DiscType, Mode=TwoWay}" Foreground="Black"/>
+                  <ComboBox Items="{x:Static local:MainWindow.DiscTypes}" SelectedItem="{Binding DiscType, Mode=TwoWay}" Foreground="Black" Background="White"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellEditingTemplate>
             </DataGridTemplateColumn>

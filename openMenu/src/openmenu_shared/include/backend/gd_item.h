@@ -22,3 +22,32 @@ typedef struct gd_item {
     char folder[512];
     char type[8];
 } gd_item;
+
+/* Helper functions to parse disc field "N/M" format (supports 1-10) */
+static inline int gd_item_disc_num(const char* disc) {
+    /* Parse current disc number before '/' */
+    int num = 0;
+    const char* p = disc;
+    while (*p && *p != '/') {
+        if (*p >= '0' && *p <= '9') {
+            num = num * 10 + (*p - '0');
+        }
+        p++;
+    }
+    return num;
+}
+
+static inline int gd_item_disc_total(const char* disc) {
+    /* Parse total disc count after '/' */
+    const char* p = disc;
+    while (*p && *p != '/') p++;
+    if (*p == '/') p++;
+    int num = 0;
+    while (*p) {
+        if (*p >= '0' && *p <= '9') {
+            num = num * 10 + (*p - '0');
+        }
+        p++;
+    }
+    return num;
+}

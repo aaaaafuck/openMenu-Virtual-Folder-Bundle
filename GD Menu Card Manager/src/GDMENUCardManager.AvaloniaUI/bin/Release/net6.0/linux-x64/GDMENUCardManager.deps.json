@@ -7,13 +7,13 @@
   "targets": {
     ".NETCoreApp,Version=v6.0": {},
     ".NETCoreApp,Version=v6.0/linux-x64": {
-      "GDMENUCardManager/1.0.0": {
+      "GDMENUCardManager/1.1.0": {
         "dependencies": {
           "Avalonia": "0.10.21",
           "Avalonia.Controls.DataGrid": "0.10.21",
           "Avalonia.Desktop": "0.10.21",
           "ByteSize": "2.0.0",
-          "GDMENUCardManager.Core": "1.0.0",
+          "GDMENUCardManager.Core": "1.1.0",
           "MessageBox.Avalonia": "2.1.0",
           "SharpCompress": "0.33.0",
           "System.Configuration.ConfigurationManager": "7.0.0",
@@ -1982,7 +1982,7 @@
           }
         }
       },
-      "GDMENUCardManager.Core/1.0.0": {
+      "GDMENUCardManager.Core/1.1.0": {
         "dependencies": {
           "ByteSize": "2.0.0"
         },
@@ -1993,7 +1993,7 @@
     }
   },
   "libraries": {
-    "GDMENUCardManager/1.0.0": {
+    "GDMENUCardManager/1.1.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
@@ -3018,7 +3018,7 @@
       "path": "tmds.dbus/0.9.0",
       "hashPath": "tmds.dbus.0.9.0.nupkg.sha512"
     },
-    "GDMENUCardManager.Core/1.0.0": {
+    "GDMENUCardManager.Core/1.1.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

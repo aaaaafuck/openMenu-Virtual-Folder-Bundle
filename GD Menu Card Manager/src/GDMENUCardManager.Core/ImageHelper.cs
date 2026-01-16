@@ -200,7 +200,7 @@ namespace GDMENUCardManager.Core
                                                 CRC = string.Empty,
                                                 Version = string.Empty,
                                                 Vga = true,
-                                                Disc = "PS1",
+                                                Disc = "1/1",
                                                 SpecialDisc = SpecialDisc.BleemGame
                                             };
                                             
@@ -217,6 +217,17 @@ namespace GDMENUCardManager.Core
                                                     ip.ReleaseDate = releaseDate.ToString("yyyyMMdd");
                                                 else
                                                     ip.ReleaseDate = "19990909";
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // Not a PS1 disc, try to read as Dreamcast
+                                            for (int i = opticalImage.Partitions.Count - 1; i >= 0; i--)
+                                            {
+                                                partition = opticalImage.Partitions[i];
+                                                ip = await GetIpData(opticalImage, partition);
+                                                if (ip != null)
+                                                    break;
                                             }
                                         }
                                     }
@@ -348,7 +359,7 @@ namespace GDMENUCardManager.Core
             item.Ip = ip;
             item.Name = ip.Name;
             item.ProductNumber = ip.ProductNumber;
-            item.DiscType = ip.IsDefaultIpBin ? "Other" : "Game";
+            item.DiscType = ip.SpecialDisc == SpecialDisc.BleemGame ? "PSX" : (ip.IsDefaultIpBin ? "Other" : "Game");
 
             var itemNamePath = Path.Combine(item.FullFolderPath, Constants.NameTextFile);
             if (await Helper.FileExistsAsync(itemNamePath))
@@ -371,6 +382,13 @@ namespace GDMENUCardManager.Core
             {
                 var typeValue = await Helper.ReadAllTextAsync(itemTypePath);
                 item.DiscType = GdItem.GetDiscTypeDisplayValue(typeValue);
+            }
+
+            var itemFolderPath = Path.Combine(item.FullFolderPath, Constants.FolderTextFile);
+            if (await Helper.FileExistsAsync(itemFolderPath))
+            {
+                var folderValue = await Helper.ReadAllTextAsync(itemFolderPath);
+                item.Folder = folderValue?.Trim() ?? string.Empty;
             }
 
             item.Name = item.Name.Trim();
@@ -637,7 +655,7 @@ namespace GDMENUCardManager.Core
             item.Ip = ip;
             item.Name = ip.Name;
             item.ProductNumber = ip.ProductNumber;
-            item.DiscType = ip.IsDefaultIpBin ? "Other" : "Game";
+            item.DiscType = ip.SpecialDisc == SpecialDisc.BleemGame ? "PSX" : (ip.IsDefaultIpBin ? "Other" : "Game");
 
             var itemNamePath = Path.Combine(item.FullFolderPath, Constants.NameTextFile);
             if (await Helper.FileExistsAsync(itemNamePath))
@@ -660,6 +678,13 @@ namespace GDMENUCardManager.Core
             {
                 var typeValue = await Helper.ReadAllTextAsync(itemTypePath);
                 item.DiscType = GdItem.GetDiscTypeDisplayValue(typeValue);
+            }
+
+            var itemFolderPath = Path.Combine(item.FullFolderPath, Constants.FolderTextFile);
+            if (await Helper.FileExistsAsync(itemFolderPath))
+            {
+                var folderValue = await Helper.ReadAllTextAsync(itemFolderPath);
+                item.Folder = folderValue?.Trim() ?? string.Empty;
             }
 
             item.Name = item.Name.Trim();
@@ -692,6 +717,8 @@ namespace GDMENUCardManager.Core
             using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
             {
                 long headerOffset = GetHeaderOffset(fs);
+                if (headerOffset == -1)
+                    return null;
 
                 fs.Seek(headerOffset, SeekOrigin.Begin);
 

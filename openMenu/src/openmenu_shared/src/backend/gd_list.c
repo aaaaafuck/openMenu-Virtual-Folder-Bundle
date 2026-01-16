@@ -114,6 +114,7 @@ typedef struct folder_node {
     gd_item** games;        /* Dynamic array of game pointers */
     int num_games;          /* Current number of games */
     int games_capacity;     /* Allocated capacity */
+    int first_seen_slot;    /* Slot number of first game with this folder path */
 } folder_node_t;
 
 typedef struct {
@@ -130,7 +131,7 @@ static struct gd_item folder_items[MAX_FOLDER_NODES];
 static int folder_items_count = 0;
 
 /* Temporary list for holding all multidisc games in a set */
-#define MULTIDISC_MAX_GAMES_PER_SET (4)
+#define MULTIDISC_MAX_GAMES_PER_SET (10)
 static int num_items_multidisc = -1;
 static gd_item* list_multidisc[MULTIDISC_MAX_GAMES_PER_SET] = {NULL};
 
@@ -256,9 +257,10 @@ list_temp_reset(void) {
 
     /* Skip openMenu itself */
     for (base_idx = 1; base_idx < num_items_BASE; base_idx++) {
-        int disc_num = gd_slots_BASE[base_idx].disc[0] - '0';
-        int disc_set = gd_slots_BASE[base_idx].disc[2] - '0';
-        if (hide_multidisc && disc_num > 1 && disc_set > 1) {
+        int disc_num = gd_item_disc_num(gd_slots_BASE[base_idx].disc);
+        int disc_set = gd_item_disc_total(gd_slots_BASE[base_idx].disc);
+        /* Only hide multi-disc entries if they have a valid product code */
+        if (hide_multidisc && disc_num > 1 && disc_set > 1 && gd_slots_BASE[base_idx].product[0] != '\0') {
             continue;
         }
 
@@ -310,6 +312,14 @@ list_set_sort_default(void) {
 }
 
 void
+list_set_sort_alphabetical(void) {
+    list_temp_reset();
+    qsort(list_temp, num_items_temp, sizeof(gd_item*), struct_cmp_by_name);
+    list_current = list_temp;
+    num_items_current = num_items_temp;
+}
+
+void
 list_set_sort_filter(const char type, int num) {
 #ifdef _arch_dreamcast
     int base_idx, temp_idx = 1;
@@ -322,9 +332,10 @@ list_set_sort_filter(const char type, int num) {
 
     /* Skip openMenu itself */
     for (base_idx = 1; base_idx < num_items_BASE; base_idx++) {
-        int disc_num = gd_slots_BASE[base_idx].disc[0] - '0';
-        int disc_set = gd_slots_BASE[base_idx].disc[2] - '0';
-        if (hide_multidisc && disc_num > 1 && disc_set > 1) {
+        int disc_num = gd_item_disc_num(gd_slots_BASE[base_idx].disc);
+        int disc_set = gd_item_disc_total(gd_slots_BASE[base_idx].disc);
+        /* Only hide multi-disc entries if they have a valid product code */
+        if (hide_multidisc && disc_num > 1 && disc_set > 1 && gd_slots_BASE[base_idx].product[0] != '\0') {
             continue;
         }
 
@@ -391,9 +402,10 @@ list_set_genre(int matching_genre) {
 
     /* Skip openMenu itself */
     for (base_idx = 1; base_idx < num_items_BASE; base_idx++) {
-        int disc_num = gd_slots_BASE[base_idx].disc[0] - '0';
-        int disc_set = gd_slots_BASE[base_idx].disc[2] - '0';
-        if (hide_multidisc && disc_num > 1 && disc_set > 1) {
+        int disc_num = gd_item_disc_num(gd_slots_BASE[base_idx].disc);
+        int disc_set = gd_item_disc_total(gd_slots_BASE[base_idx].disc);
+        /* Only hide multi-disc entries if they have a valid product code */
+        if (hide_multidisc && disc_num > 1 && disc_set > 1 && gd_slots_BASE[base_idx].product[0] != '\0') {
             continue;
         }
 
@@ -440,6 +452,48 @@ list_set_multidisc(const char* product_id) {
         list_multidisc[temp_idx++] = &gd_slots_BASE[base_idx];
     }
     num_items_multidisc = temp_idx;
+}
+
+void
+list_set_multidisc_filtered(const char* product_id, const char* folder_path) {
+    int base_idx, temp_idx = 0;
+
+    /* Skip openMenu itself */
+    for (base_idx = 1; base_idx < num_items_BASE; base_idx++) {
+        /* Must match product ID */
+        if (strcmp(gd_slots_BASE[base_idx].product, product_id)) {
+            continue;
+        }
+
+        /* If folder filter provided, must also match folder */
+        if (folder_path && strcmp(gd_slots_BASE[base_idx].folder, folder_path)) {
+            continue;
+        }
+
+        list_multidisc[temp_idx++] = &gd_slots_BASE[base_idx];
+    }
+    num_items_multidisc = temp_idx;
+}
+
+int
+list_count_multidisc_filtered(const char* product_id, const char* folder_path) {
+    int count = 0;
+
+    /* Skip openMenu itself */
+    for (int base_idx = 1; base_idx < num_items_BASE; base_idx++) {
+        /* Must match product ID */
+        if (strcmp(gd_slots_BASE[base_idx].product, product_id)) {
+            continue;
+        }
+
+        /* If folder filter provided, must also match folder */
+        if (folder_path && strcmp(gd_slots_BASE[base_idx].folder, folder_path)) {
+            continue;
+        }
+
+        count++;
+    }
+    return count;
 }
 
 int
@@ -639,7 +693,7 @@ folder_parse_path(const char* folder_path, char segments[][256], int max_segment
 }
 
 static folder_node_t*
-folder_find_or_create_node(folder_node_t* parent, const char* name) {
+folder_find_or_create_node(folder_node_t* parent, const char* name, int slot_num) {
     if (!parent || !name) {
         return NULL;
     }
@@ -662,6 +716,7 @@ folder_find_or_create_node(folder_node_t* parent, const char* name) {
     strncpy(node->name, name, 255);
     node->name[255] = '\0';
     node->parent = parent;
+    node->first_seen_slot = slot_num;  /* Track when this folder was first seen */
 
     /* Allocate initial capacity for games (start with 64, will grow as needed) */
     node->games_capacity = 64;
@@ -734,11 +789,86 @@ folder_cmp(const void* a, const void* b) {
     int is_dir_a = !strncmp((*item_a)->disc, "DIR", 3);
     int is_dir_b = !strncmp((*item_b)->disc, "DIR", 3);
 
+    /* Directories always come first */
     if (is_dir_a != is_dir_b) {
         return is_dir_b - is_dir_a;
     }
 
+    /* In Folders mode, mapping is inverted for backward compatibility:
+     * - SORT_DEFAULT (0) = Alphabetical (old default behavior)
+     * - SORT_NAME (1) = SD Card Order
+     * Sort by slot order when Sort = Name, otherwise alphabetically */
+    if (sf_sort[0] == SORT_NAME) {
+        return (*item_a)->slot_num - (*item_b)->slot_num;
+    }
+
     return strcasecmp((*item_a)->name, (*item_b)->name);
+}
+
+/* Check if a game should be visible within a folder node.
+ * When multidisc hiding is enabled, show only the lowest disc number for this product in this folder.
+ * The grouping mode only affects launcher/details, not folder display - every folder shows its local games. */
+static int
+folder_game_visible(folder_node_t* node, gd_item* game, int hide_multidisc) {
+    if (!hide_multidisc) {
+        return 1;  /* Show all discs */
+    }
+
+    /* Games without product codes are always visible (treat as single disc) */
+    if (game->product[0] == '\0') {
+        return 1;
+    }
+
+    int disc_num = gd_item_disc_num(game->disc);
+    int disc_set = gd_item_disc_total(game->disc);
+
+    if (disc_set <= 1) {
+        return 1;  /* Single disc game, always visible */
+    }
+
+    /* Show only the lowest disc number for this product in this folder */
+    int lowest_disc = disc_num;
+    for (int i = 0; i < node->num_games; i++) {
+        gd_item* other = node->games[i];
+        if (strcmp(other->product, game->product) == 0) {
+            int other_disc = gd_item_disc_num(other->disc);
+            if (other_disc < lowest_disc) {
+                lowest_disc = other_disc;
+            }
+        }
+    }
+
+    return (disc_num == lowest_disc);
+}
+
+/* Count visible games in a folder node (non-recursive, just this folder's games) */
+static int
+folder_count_visible_games(folder_node_t* node, int hide_multidisc) {
+    int count = 0;
+    for (int i = 0; i < node->num_games; i++) {
+        if (folder_game_visible(node, node->games[i], hide_multidisc)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/* Recursively check if a folder has any visible content (games or non-empty subfolders) */
+static int
+folder_has_visible_content(folder_node_t* node, int hide_multidisc) {
+    /* Check if this folder has visible games */
+    if (folder_count_visible_games(node, hide_multidisc) > 0) {
+        return 1;
+    }
+
+    /* Check if any subfolder has visible content */
+    for (int i = 0; i < node->num_children; i++) {
+        if (folder_has_visible_content(node->children[i], hide_multidisc)) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 void
@@ -771,7 +901,7 @@ list_folder_init(void) {
         folder_node_t* current = folder_tree_root;
 
         for (int d = 0; d < depth; d++) {
-            current = folder_find_or_create_node(current, segments[d]);
+            current = folder_find_or_create_node(current, segments[d], i);
             if (!current) {
                 break;
             }
@@ -812,6 +942,12 @@ list_set_folder_root(void) {
     printf("list_set_folder_root: Building folder view, root has %d children and %d games\n",
            folder_tree_root->num_children, folder_tree_root->num_games);
 
+#ifndef STANDALONE_BINARY
+    int hide_multidisc = sf_multidisc[0];
+#else
+    int hide_multidisc = 1;
+#endif
+
     int temp_idx = 0;
     folder_items_count = 0;
 
@@ -820,30 +956,26 @@ list_set_folder_root(void) {
             break;
         }
 
+        /* Skip empty subfolders (no visible games or nested content) */
+        if (!folder_has_visible_content(folder_tree_root->children[i], hide_multidisc)) {
+            continue;
+        }
+
         gd_item* folder_entry = &folder_items[folder_items_count++];
         memset(folder_entry, 0, sizeof(gd_item));
 
         snprintf(folder_entry->name, 128, "[%s]", folder_tree_root->children[i]->name);
         strcpy(folder_entry->disc, "DIR");
         folder_entry->product[0] = 'F';
-        folder_entry->slot_num = i;
+        folder_entry->slot_num = folder_tree_root->children[i]->first_seen_slot;
 
         list_temp[temp_idx++] = folder_entry;
     }
 
-#ifndef STANDALONE_BINARY
-    int hide_multidisc = sf_multidisc[0];
-#else
-    int hide_multidisc = 1;
-#endif
-
     for (int i = 0; i < folder_tree_root->num_games; i++) {
         gd_item* game = folder_tree_root->games[i];
 
-        int disc_num = game->disc[0] - '0';
-        int disc_set = game->disc[2] - '0';
-
-        if (hide_multidisc && disc_num > 1 && disc_set > 1) {
+        if (!folder_game_visible(folder_tree_root, game, hide_multidisc)) {
             continue;
         }
 
@@ -875,6 +1007,12 @@ list_set_folder_path(const char* path) {
         return;
     }
 
+#ifndef STANDALONE_BINARY
+    int hide_multidisc = sf_multidisc[0];
+#else
+    int hide_multidisc = 1;
+#endif
+
     int temp_idx = 0;
 
     if (folder_state.depth > 0) {
@@ -888,30 +1026,26 @@ list_set_folder_path(const char* path) {
             break;
         }
 
+        /* Skip empty subfolders (no visible games or nested content) */
+        if (!folder_has_visible_content(node->children[i], hide_multidisc)) {
+            continue;
+        }
+
         gd_item* folder_entry = &folder_items[folder_items_count++];
         memset(folder_entry, 0, sizeof(gd_item));
 
         snprintf(folder_entry->name, 128, "[%s]", node->children[i]->name);
         strcpy(folder_entry->disc, "DIR");
         folder_entry->product[0] = 'F';
-        folder_entry->slot_num = i;
+        folder_entry->slot_num = node->children[i]->first_seen_slot;
 
         list_temp[temp_idx++] = folder_entry;
     }
 
-#ifndef STANDALONE_BINARY
-    int hide_multidisc = sf_multidisc[0];
-#else
-    int hide_multidisc = 1;
-#endif
-
     for (int i = 0; i < node->num_games; i++) {
         gd_item* game = node->games[i];
 
-        int disc_num = game->disc[0] - '0';
-        int disc_set = game->disc[2] - '0';
-
-        if (hide_multidisc && disc_num > 1 && disc_set > 1) {
+        if (!folder_game_visible(node, game, hide_multidisc)) {
             continue;
         }
 
@@ -925,20 +1059,33 @@ list_set_folder_path(const char* path) {
 }
 
 void
-list_folder_enter(int folder_idx, int cursor_pos) {
-    if (!folder_tree_root || folder_state.depth >= MAX_FOLDER_DEPTH) {
+list_folder_enter(const char* folder_name, int cursor_pos) {
+    if (!folder_tree_root || folder_state.depth >= MAX_FOLDER_DEPTH || !folder_name) {
         return;
     }
 
     folder_node_t* current_node = folder_find_by_path(folder_tree_root, folder_state.path);
-    if (!current_node || folder_idx >= current_node->num_children) {
+    if (!current_node) {
         return;
+    }
+
+    /* Find child folder by name */
+    folder_node_t* target_folder = NULL;
+    for (int i = 0; i < current_node->num_children; i++) {
+        if (strcmp(current_node->children[i]->name, folder_name) == 0) {
+            target_folder = current_node->children[i];
+            break;
+        }
+    }
+
+    if (!target_folder) {
+        return;  /* Folder not found */
     }
 
     /* Save cursor position before descending */
     folder_state.cursor_positions[folder_state.depth] = cursor_pos;
 
-    strncpy(folder_state.breadcrumbs[folder_state.depth], current_node->children[folder_idx]->name, 255);
+    strncpy(folder_state.breadcrumbs[folder_state.depth], target_folder->name, 255);
     folder_state.breadcrumbs[folder_state.depth][255] = '\0';
     folder_state.depth++;
 
@@ -951,6 +1098,46 @@ list_folder_enter(int folder_idx, int cursor_pos) {
     }
 
     list_set_folder_path(folder_state.path);
+}
+
+int
+list_folder_get_stats(const char* folder_name, int* num_subfolders, int* num_games) {
+    if (!folder_tree_root || !folder_name || !num_subfolders || !num_games) {
+        return -1;
+    }
+
+    folder_node_t* current_node = folder_find_by_path(folder_tree_root, folder_state.path);
+    if (!current_node) {
+        return -1;
+    }
+
+#ifndef STANDALONE_BINARY
+    int hide_multidisc = sf_multidisc[0];
+#else
+    int hide_multidisc = 1;
+#endif
+
+    /* Find child folder by name */
+    for (int i = 0; i < current_node->num_children; i++) {
+        if (strcmp(current_node->children[i]->name, folder_name) == 0) {
+            folder_node_t* child = current_node->children[i];
+
+            /* Count visible subfolders */
+            int visible_subfolders = 0;
+            for (int j = 0; j < child->num_children; j++) {
+                if (folder_has_visible_content(child->children[j], hide_multidisc)) {
+                    visible_subfolders++;
+                }
+            }
+            *num_subfolders = visible_subfolders;
+
+            /* Count visible games */
+            *num_games = folder_count_visible_games(child, hide_multidisc);
+            return 0;
+        }
+    }
+
+    return -1;  /* Folder not found */
 }
 
 int

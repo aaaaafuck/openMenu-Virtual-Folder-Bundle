@@ -7,18 +7,24 @@ uint8_t* sf_sort;
 uint8_t* sf_filter;
 uint8_t* sf_beep;
 uint8_t* sf_multidisc;
+uint8_t* sf_multidisc_grouping;
 uint8_t* sf_custom_theme;
 uint8_t* sf_custom_theme_num;
 uint8_t* sf_bios_3d;
 uint8_t* sf_scroll_art;
 uint8_t* sf_scroll_index;
 uint8_t* sf_folders_art;
+uint8_t* sf_folders_item_details;
 uint8_t* sf_marquee_speed;
+uint8_t* sf_disc_details;
+uint8_t* sf_clock;
+uint8_t* sf_vm2_send_all;
+uint8_t* sf_boot_mode;
 
 void
 settings_sanitize() {
     if ((sf_ui[0] < UI_START) || (sf_ui[0] > UI_END)) {
-        sf_ui[0] = UI_LINE_DESC;
+        sf_ui[0] = UI_FOLDERS;
     }
 
     if ((sf_region[0] < REGION_START) || (sf_region[0] > REGION_END)) {
@@ -43,6 +49,10 @@ settings_sanitize() {
 
     if ((sf_multidisc[0] < MULTIDISC_START) || (sf_multidisc[0] > MULTIDISC_END)) {
         sf_multidisc[0] = MULTIDISC_SHOW;
+    }
+
+    if ((sf_multidisc_grouping[0] < MULTIDISC_GROUPING_START) || (sf_multidisc_grouping[0] > MULTIDISC_GROUPING_END)) {
+        sf_multidisc_grouping[0] = MULTIDISC_GROUPING_ANYWHERE;
     }
 
     if ((sf_custom_theme[0] < THEME_START) || (sf_custom_theme[0] > THEME_END)) {
@@ -73,7 +83,27 @@ settings_sanitize() {
         sf_folders_art[0] = FOLDERS_ART_ON;
     }
 
+    if ((sf_folders_item_details[0] < FOLDERS_ITEM_DETAILS_START) || (sf_folders_item_details[0] > FOLDERS_ITEM_DETAILS_END)) {
+        sf_folders_item_details[0] = FOLDERS_ITEM_DETAILS_ON;
+    }
+
     if ((sf_marquee_speed[0] < MARQUEE_SPEED_START) || (sf_marquee_speed[0] > MARQUEE_SPEED_END)) {
         sf_marquee_speed[0] = MARQUEE_SPEED_MEDIUM;
+    }
+
+    if ((sf_disc_details[0] < DISC_DETAILS_START) || (sf_disc_details[0] > DISC_DETAILS_END)) {
+        sf_disc_details[0] = DISC_DETAILS_SHOW;
+    }
+
+    if ((sf_clock[0] < CLOCK_START) || (sf_clock[0] > CLOCK_END)) {
+        sf_clock[0] = CLOCK_12HOUR;
+    }
+
+    if ((sf_vm2_send_all[0] < VM2_SEND_START) || (sf_vm2_send_all[0] > VM2_SEND_END)) {
+        sf_vm2_send_all[0] = VM2_SEND_ALL;
+    }
+
+    if ((sf_boot_mode[0] < BOOT_MODE_START) || (sf_boot_mode[0] > BOOT_MODE_END)) {
+        sf_boot_mode[0] = BOOT_MODE_FULL;
     }
 }

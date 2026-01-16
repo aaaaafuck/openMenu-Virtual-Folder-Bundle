@@ -130,7 +130,12 @@ namespace GDMENUCardManager.Core
         public int SdNumber
         {
             get { return _SdNumber; }
-            set { _SdNumber = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(Location)); }
+            set { _SdNumber = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(Location)); RaisePropertyChanged(nameof(IsNotOnSdCard)); }
+        }
+
+        public bool IsNotOnSdCard
+        {
+            get { return SdNumber == 0; }
         }
 
         private WorkMode _Work;
@@ -167,6 +172,7 @@ namespace GDMENUCardManager.Core
             {
                 case "Game": return "game";
                 case "Other": return "other";
+                case "PSX": return "psx";
                 default: return "game";
             }
         }
@@ -180,6 +186,7 @@ namespace GDMENUCardManager.Core
             {
                 case "game": return "Game";
                 case "other": return "Other";
+                case "psx": return "PSX";
                 default: return "Game";
             }
         }

@@ -60,6 +60,9 @@ typedef enum {
 
 typedef uint8_t dpad_t;
 
+/* Maximum number of simultaneous keyboard keys (hardware limit) */
+#define INPT_MAX_KEYBOARD_KEYS 6
+
 typedef struct __attribute__((packed)) inputs {
     uint8_t btn_a;
     uint8_t btn_b;
@@ -74,6 +77,9 @@ typedef struct __attribute__((packed)) inputs {
                     /* Note the below may not exist on some platforms */
     uint8_t axes_3; /* Secondary Analog X */
     uint8_t axes_4; /* Secondary Analog Y */
+    /* Keyboard support - list of currently pressed key scancodes */
+    uint8_t kbd_modifiers;
+    uint8_t kbd_buttons[INPT_MAX_KEYBOARD_KEYS];
 } inputs;
 
 void INPT_ReceiveFromHost(inputs _in);
@@ -86,6 +92,10 @@ float INPT_AnalogF(ANALOG_AXES axes);
 uint8_t INPT_AnalogI(ANALOG_AXES axes);
 bool INPT_TriggerPressed(TRIGGER trigger);
 uint8_t INPT_TriggerValue(TRIGGER trigger);
+
+/* Keyboard support */
+bool INPT_KeyboardNone(void);
+bool INPT_KeyboardButton(uint8_t kbtn);
 
 /* Input Strings */
 #ifdef _arch_dreamcast

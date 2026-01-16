@@ -53,7 +53,7 @@ namespace GDMENUCardManager {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/GDMENUCardManager;V1.0.0.0;component/copynamewindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/GDMENUCardManager;V1.1.0.0;component/copynamewindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\CopyNameWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

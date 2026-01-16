@@ -57,6 +57,8 @@ namespace GDMENUCardManager.Core
 
         public ObservableCollection<GdItem> ItemList { get; } = new ObservableCollection<GdItem>();
 
+        public ObservableCollection<string> KnownFolders { get; } = new ObservableCollection<string>();
+
         public static Manager CreateInstance(IDependencyManager m, string[] compressedFileExtensions)
         {
             Helper.DependencyManager = m;
@@ -80,8 +82,12 @@ namespace GDMENUCardManager.Core
             var toAdd = new List<Tuple<int, string>>();
             var rootDirs = await Helper.GetDirectoriesAsync(sdPath);
             foreach (var item in rootDirs)//.OrderBy(x => x))
+            {
                 if (int.TryParse(Path.GetFileName(item), out int number))
+                {
                     toAdd.Add(new Tuple<int, string>(number, item));
+                }
+            }
 
             var invalid = new List<string>();
             bool isFirstItem = true;
@@ -120,13 +126,19 @@ namespace GDMENUCardManager.Core
                         }
                     }
                 }
-                catch (Exception ex) { invalid.Add($"{item.Item2} {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    invalid.Add($"{item.Item2} {ex.Message}");
+                }
 
             if (invalid.Any())
                 throw new Exception(string.Join(Environment.NewLine, invalid));
 
             //todo implement menu fallback? to default or forced mode (in config)
             //if (MenuKindSelected == MenuKind.None) { }
+
+            // Initialize known folders from current items
+            InitializeKnownFolders();
         }
 
         private async ValueTask loadIP(IEnumerable<GdItem> items)
@@ -304,6 +316,41 @@ namespace GDMENUCardManager.Core
                 itemType = GdItem.GetDiscTypeDisplayValue(typeFileValue);
             }
 
+            var itemDisc = string.Empty;
+            var discFile = files.FirstOrDefault(x => Path.GetFileName(x).Equals(Constants.DiscTextFile, StringComparison.OrdinalIgnoreCase));
+            if (discFile != null)
+            {
+                itemDisc = await Helper.ReadAllTextAsync(discFile);
+                itemDisc = itemDisc?.Trim() ?? string.Empty;
+            }
+
+            // Read vga.txt if it exists
+            var itemVga = string.Empty;
+            var vgaFile = files.FirstOrDefault(x => Path.GetFileName(x).Equals(Constants.VgaTextFile, StringComparison.OrdinalIgnoreCase));
+            if (vgaFile != null)
+            {
+                itemVga = await Helper.ReadAllTextAsync(vgaFile);
+                itemVga = itemVga?.Trim() ?? string.Empty;
+            }
+
+            // Read version.txt if it exists
+            var itemVersion = string.Empty;
+            var versionFile = files.FirstOrDefault(x => Path.GetFileName(x).Equals(Constants.VersionTextFile, StringComparison.OrdinalIgnoreCase));
+            if (versionFile != null)
+            {
+                itemVersion = await Helper.ReadAllTextAsync(versionFile);
+                itemVersion = itemVersion?.Trim() ?? string.Empty;
+            }
+
+            // Read date.txt if it exists
+            var itemDate = string.Empty;
+            var dateFile = files.FirstOrDefault(x => Path.GetFileName(x).Equals(Constants.DateTextFile, StringComparison.OrdinalIgnoreCase));
+            if (dateFile != null)
+            {
+                itemDate = await Helper.ReadAllTextAsync(dateFile);
+                itemDate = itemDate?.Trim() ?? string.Empty;
+            }
+
             string itemImageFile = null;
 
             //is uncompressed?
@@ -332,8 +379,35 @@ namespace GDMENUCardManager.Core
                 Length = ByteSizeLib.ByteSize.FromBytes(new DirectoryInfo(folderPath).GetFiles().Sum(x => x.Length)),
             };
 
+            // Only create IpBin with cached values if the cache files exist
+            // If vga.txt, version.txt, date.txt don't exist, leave Ip as null
+            // so LoadIpAll will parse from disc image later
+            bool hasCachedIpData = vgaFile != null && versionFile != null && dateFile != null;
+
+            if (hasCachedIpData)
+            {
+                // Parse vga value: "1" or "true" = true, anything else = false
+                bool vgaValue = itemVga == "1" || itemVga.Equals("true", StringComparison.OrdinalIgnoreCase);
+
+                item.Ip = new IpBin
+                {
+                    Disc = !string.IsNullOrWhiteSpace(itemDisc) ? itemDisc : "1/1",
+                    Vga = vgaValue,
+                    Version = itemVersion,
+                    ReleaseDate = itemDate
+                };
+            }
+            else if (!string.IsNullOrWhiteSpace(itemDisc))
+            {
+                // If only disc.txt exists, create minimal IpBin with just disc
+                // LoadIpAll will still re-parse since we need vga/version/date
+                // Actually, we should leave Ip null to trigger re-parsing
+                // The disc value will be obtained from the full parsing
+            }
+            // else: Ip remains null, LoadIpAll will parse from disc image
+
             item.ImageFiles.Add(Path.GetFileName(itemImageFile));
-            
+
             return item;
         }
 
@@ -348,13 +422,11 @@ namespace GDMENUCardManager.Core
                 {
                     throw new Exception("Menu not selected on Settings");
                 }
-                else
-                {
-                    //todo validate menu files? check if folder exists?
-                }
 
                 if (ItemList.Count == 0 || await Helper.DependencyManager.ShowYesNoDialog("Save", $"Save changes to {sdPath} drive?") == false)
+                {
                     return false;
+                }
 
                 //load ipbin from lazy loaded items
                 try
@@ -372,11 +444,11 @@ namespace GDMENUCardManager.Core
                 StringBuilder sb = new StringBuilder();
                 StringBuilder sb_open = new StringBuilder();
 
-                //delete unused folders that are numbers
+                //delete unused folders that are numbers (but skip 01 as it's the menu folder)
                 List<string> foldersToDelete = new List<string>();
                 foreach (var item in await Helper.GetDirectoriesAsync(sdPath))
                     if (int.TryParse(Path.GetFileName(item), out int number))
-                        if (number > 0 && !ItemList.Any(x => x.SdNumber == number))
+                        if (number > 1 && !ItemList.Any(x => x.SdNumber == number))
                             foldersToDelete.Add(item);
 
                 if (foldersToDelete.Any())
@@ -389,11 +461,15 @@ namespace GDMENUCardManager.Core
                         sb.AppendLine($"[and more {more} folders]");
 
                     if (await Helper.DependencyManager.ShowYesNoDialog("Confirm", $"The following folders need to be deleted.\nConfirm deletion?\n\n{sb.ToString()}") == false)
+                    {
                         return false;
+                    }
 
                     foreach (var item in foldersToDelete)
                         if (Directory.Exists(item))
+                        {
                             await Helper.DeleteDirectoryAsync(item);
+                        }
                 }
                 sb.Clear();
 
@@ -403,11 +479,10 @@ namespace GDMENUCardManager.Core
 
                 tempDirectory = Path.Combine(tempFolderRoot, Guid.NewGuid().ToString());
 
-
                 if (!await Helper.DirectoryExistsAsync(tempDirectory))
+                {
                     await Helper.CreateDirectoryAsync(tempDirectory);
-
-                bool foundMenuOnSdCard = false;
+                }
 
                 sb.AppendLine("[GDMENU]");
                 sb_open.AppendLine("[OPENMENU]");
@@ -415,56 +490,56 @@ namespace GDMENUCardManager.Core
                 sb_open.AppendLine();
                 sb_open.AppendLine("[ITEMS]");
 
-                var ammountToIncrement = 2;//foundMenuOnSdCard ? 2 : 1
+                // Load menu IP.BIN data for INI generation
+                var menuIpBin = ImageHelper.GetIpData(File.ReadAllBytes(ipbinPath));
+
                 var folder01 = Path.Combine(sdPath, "01");
+
                 if (await Helper.DirectoryExistsAsync(folder01))
                 {
                     try
                     {
                         var ip01 = await ImageHelper.CreateGdItemAsync(folder01);
+
                         if (ip01 != null && (ip01.Ip?.Name == "GDMENU" || ip01.Ip?.Name == "openMenu"))
                         {
-                            foundMenuOnSdCard = true;
-                            ammountToIncrement = 1;
-
                             //delete sdcard menu folder 01
                             await Helper.DeleteDirectoryAsync(folder01);
 
                             //if user changed between GDMENU <> openMenu
                             //reload name and serial from ip.bin
-                            var menu = ItemList.OrderBy(x => x.SdNumber).First();
+                            var menu = ItemList.FirstOrDefault(x => x.Ip?.Name == "GDMENU" || x.Ip?.Name == "openMenu");
+
                             if ((ip01.Ip?.Name == "GDMENU" && MenuKindSelected != MenuKind.gdMenu) || ip01.Ip?.Name == "openMenu" && MenuKindSelected != MenuKind.openMenu)
                             {
-                                var menuIpBin = ImageHelper.GetIpData(File.ReadAllBytes(ipbinPath));
                                 menu.Name = menuIpBin.Name;
                                 menu.ProductNumber = menuIpBin.ProductNumber;
                                 menu.Ip = menuIpBin;
                             }
+
+                            // Remove the old menu from ItemList - GenerateMenuImageAsync will insert a fresh one
+                            ItemList.Remove(menu);
                         }
                     }
-                    catch (Exception)
+                    catch
                     {
                         throw;//todo check?
 
                     }
                 }
 
-                if (!foundMenuOnSdCard)//ammountToIncrement == 2
+                // ALWAYS write menu as entry 01 in the INI file
+                FillListText(sb, menuIpBin, menuIpBin.ProductNumber, menuIpBin.Name, 1);
+                FillListText(sb_open, menuIpBin, menuIpBin.Name, menuIpBin.ProductNumber, 1, true, null, null);
+
+                // Write games starting from entry 02 (skip menu if it's at index 0, otherwise start at 0)
+                bool menuAtIndexZero = ItemList.Count > 0 && (ItemList[0].Ip?.Name == "GDMENU" || ItemList[0].Ip?.Name == "openMenu");
+                int gameStartIndex = menuAtIndexZero ? 1 : 0;
+                for (int i = gameStartIndex; i < ItemList.Count; i++)
                 {
-                    var menuIpBin = ImageHelper.GetIpData(File.ReadAllBytes(ipbinPath));
-
-                    //increment sdfolder numbers
-                    //foreach (var item in ItemList.Where(x => x.SdNumber > 0).ToArray())
-                    //    item.SdNumber++;
-
-                    FillListText(sb, menuIpBin, menuIpBin.ProductNumber, menuIpBin.Name, 1);//insert menu in text list
-                    FillListText(sb_open, menuIpBin, menuIpBin.Name, menuIpBin.ProductNumber, 1, true, null, null);//insert menu in text list
-                }
-
-                for (int i = 0; i < ItemList.Count; i++)
-                {
-                    FillListText(sb, ItemList[i].Ip, ItemList[i].Name, ItemList[i].ProductNumber, i + ammountToIncrement);
-                    FillListText(sb_open, ItemList[i].Ip, ItemList[i].Name, ItemList[i].ProductNumber, i + ammountToIncrement, true, ItemList[i].Folder, ItemList[i].GetDiscTypeFileValue());
+                    int entryNumber = menuAtIndexZero ? i + 1 : i + 2;
+                    FillListText(sb, ItemList[i].Ip, ItemList[i].Name, ItemList[i].ProductNumber, entryNumber);
+                    FillListText(sb_open, ItemList[i].Ip, ItemList[i].Name, ItemList[i].ProductNumber, entryNumber, true, ItemList[i].Folder, ItemList[i].GetDiscTypeFileValue());
                 }
 
                 //generate iso and save in temp
@@ -472,12 +547,20 @@ namespace GDMENUCardManager.Core
                 sb.Clear();
                 sb_open.Clear();
 
-                //define what to do with each folder
-                for (int i = 0; i < ItemList.Count; i++)
+                // Ensure menu item at position 0 has correct Work mode
+                bool menuCurrentlyAtIndexZero = ItemList.Count > 0 && (ItemList[0].Ip?.Name == "GDMENU" || ItemList[0].Ip?.Name == "openMenu");
+                if (menuCurrentlyAtIndexZero)
                 {
-                    int folderNumber = i + 1;// + ammountToIncrement;
+                    ItemList[0].SdNumber = 1;
+                    ItemList[0].Work = WorkMode.New;
+                }
+
+                //define what to do with each folder (skip first item if it's the menu)
+                int startIndex = menuCurrentlyAtIndexZero ? 1 : 0;
+                for (int i = startIndex; i < ItemList.Count; i++)
+                {
+                    int folderNumber = i + 1;
                     var item = ItemList[i];
-                    //fillListText(sb, item.Ip, folderNumber);
 
                     if (item.SdNumber == 0)
                         item.Work = WorkMode.New;
@@ -485,14 +568,20 @@ namespace GDMENUCardManager.Core
                         item.Work = WorkMode.Move;
                 }
 
-                //set correct folder numbers
-                for (int i = 0; i < ItemList.Count; i++)
-                    ItemList[i].SdNumber = i + 1;// + ammountToIncrement;
+                //set correct folder numbers (skip first item if it's the menu)
+                for (int i = startIndex; i < ItemList.Count; i++)
+                {
+                    var item = ItemList[i];
+                    item.SdNumber = i + 1;
+                }
 
                 //rename numbers to guid
-                foreach (var item in ItemList.Where(x => x.Work == WorkMode.Move))
+                var itemsToMove = ItemList.Where(x => x.Work == WorkMode.Move).ToList();
+                foreach (var item in itemsToMove)
                 {
-                    await Helper.MoveDirectoryAsync(item.FullFolderPath, Path.Combine(sdPath, item.Guid));
+                    var fromPath = item.FullFolderPath;
+                    var toPath = Path.Combine(sdPath, item.Guid);
+                    await Helper.MoveDirectoryAsync(fromPath, toPath);
                 }
 
                 //rename guid to number
@@ -502,8 +591,8 @@ namespace GDMENUCardManager.Core
                 await CopyNewItems(tempDirectory);
 
 
-                //finally rename disc images, write name text file
-                foreach (var item in ItemList)
+                //finally rename disc images, write name text file (skip menu if it's at index 0)
+                foreach (var item in ItemList.Skip(menuCurrentlyAtIndexZero ? 1 : 0))
                 {
                     //rename image file
                     if (Path.GetFileNameWithoutExtension(item.ImageFile) != Constants.DefaultImageFileName)
@@ -557,6 +646,24 @@ namespace GDMENUCardManager.Core
                         var discValue = item.Ip?.Disc ?? "1/1";
                         if (!await Helper.FileExistsAsync(itemDiscPath) || (await Helper.ReadAllTextAsync(itemDiscPath)).Trim() != discValue)
                             await Helper.WriteTextFileAsync(itemDiscPath, discValue);
+
+                        //write vga into folder
+                        var itemVgaPath = Path.Combine(item.FullFolderPath, Constants.VgaTextFile);
+                        var vgaValue = (item.Ip?.Vga ?? false) ? "1" : "0";
+                        if (!await Helper.FileExistsAsync(itemVgaPath) || (await Helper.ReadAllTextAsync(itemVgaPath)).Trim() != vgaValue)
+                            await Helper.WriteTextFileAsync(itemVgaPath, vgaValue);
+
+                        //write version into folder
+                        var itemVersionPath = Path.Combine(item.FullFolderPath, Constants.VersionTextFile);
+                        var versionValue = item.Ip?.Version ?? string.Empty;
+                        if (!await Helper.FileExistsAsync(itemVersionPath) || (await Helper.ReadAllTextAsync(itemVersionPath)).Trim() != versionValue)
+                            await Helper.WriteTextFileAsync(itemVersionPath, versionValue);
+
+                        //write date into folder
+                        var itemDatePath = Path.Combine(item.FullFolderPath, Constants.DateTextFile);
+                        var dateValue = item.Ip?.ReleaseDate ?? string.Empty;
+                        if (!await Helper.FileExistsAsync(itemDatePath) || (await Helper.ReadAllTextAsync(itemDatePath)).Trim() != dateValue)
+                            await Helper.WriteTextFileAsync(itemDatePath, dateValue);
                     }
 
                     //write info text into folder for cdi files
@@ -623,17 +730,40 @@ namespace GDMENUCardManager.Core
                     if (File.Exists(originFile))
                         File.Copy(originFile, Path.Combine(sdPath, "MENU_DEBUG.TXT"), true);
                 }
+
+                //write disc list to root of sdcard
+                var discListPath = Path.Combine(sdPath, "DISCLIST.TXT");
+                sb.Clear();
+                var maxSdNumber = ItemList.Max(x => x.SdNumber);
+                var padWidth = maxSdNumber.ToString().Length;
+                foreach (var item in ItemList.OrderBy(x => x.SdNumber))
+                {
+                    var title = string.IsNullOrEmpty(item.Folder) ? item.Name : $"{item.Folder}\\{item.Name}";
+                    var disc = item.Ip?.Disc ?? "1/1";
+                    var serial = item.ProductNumber ?? "";
+                    var type = item.DiscType ?? "Game";
+                    sb.AppendLine($"{item.SdNumber.ToString().PadLeft(padWidth, '0')} - {title} - Disc {disc} - {serial} - {type}");
+                }
+                await Helper.WriteTextFileAsync(discListPath, sb.ToString());
+
                 return true;
+            }
+            catch
+            {
+                throw;
             }
             finally
             {
                 try
                 {
                     if (tempDirectory != null && await Helper.DirectoryExistsAsync(tempDirectory))
+                    {
                         await Helper.DeleteDirectoryAsync(tempDirectory);
+                    }
                 }
-                catch (Exception)
+                catch
                 {
+                    // Silently fail cleanup
                 }
             }
         }
@@ -659,18 +789,28 @@ namespace GDMENUCardManager.Core
 
             var cdiPath = Path.Combine(tempDirectory, "menu_gdi");//var destinationFolder = Path.Combine(sdPath, "01");
             if (await Helper.DirectoryExistsAsync(cdiPath))
+            {
                 await Helper.DeleteDirectoryAsync(cdiPath);
+            }
 
             await Helper.CreateDirectoryAsync(cdiPath);
             var cdiFilePath = Path.Combine(cdiPath, "disc.gdi");
 
+            var menuToolsPath = Path.Combine(currentAppPath, "tools", MenuKindSelected.ToString());
+
             if (MenuKindSelected == MenuKind.gdMenu)
             {
-                await Helper.CopyDirectoryAsync(Path.Combine(currentAppPath, "tools", "gdMenu", "menu_data"), dataPath);
-                await Helper.CopyDirectoryAsync(Path.Combine(currentAppPath, "tools", "gdMenu", "menu_gdi"), cdiPath);
+                var menuDataSrc = Path.Combine(currentAppPath, "tools", "gdMenu", "menu_data");
+                var menuGdiSrc = Path.Combine(currentAppPath, "tools", "gdMenu", "menu_gdi");
+                var menuLowSrc = Path.Combine(currentAppPath, "tools", "gdMenu", "menu_low_data");
+
+                await Helper.CopyDirectoryAsync(menuDataSrc, dataPath);
+                await Helper.CopyDirectoryAsync(menuGdiSrc, cdiPath);
                 /* Copy to low density */
-                if (await Helper.DirectoryExistsAsync(Path.Combine(currentAppPath, "tools", "gdMenu", "menu_low_data")))
-                    await Helper.CopyDirectoryAsync(Path.Combine(currentAppPath, "tools", "gdMenu", "menu_low_data"), lowdataPath);
+                if (await Helper.DirectoryExistsAsync(menuLowSrc))
+                {
+                    await Helper.CopyDirectoryAsync(menuLowSrc, lowdataPath);
+                }
                 /* Write to low density */
                 await Helper.WriteTextFileAsync(Path.Combine(lowdataPath, "LIST.INI"), listText);
                 /* Write to high density */
@@ -682,11 +822,17 @@ namespace GDMENUCardManager.Core
             }
             else if (MenuKindSelected == MenuKind.openMenu)
             {
-                await Helper.CopyDirectoryAsync(Path.Combine(currentAppPath, "tools", "openMenu", "menu_data"), dataPath);
-                await Helper.CopyDirectoryAsync(Path.Combine(currentAppPath, "tools", "openMenu", "menu_gdi"), cdiPath);
+                var menuDataSrc = Path.Combine(currentAppPath, "tools", "openMenu", "menu_data");
+                var menuGdiSrc = Path.Combine(currentAppPath, "tools", "openMenu", "menu_gdi");
+                var menuLowSrc = Path.Combine(currentAppPath, "tools", "openMenu", "menu_low_data");
+
+                await Helper.CopyDirectoryAsync(menuDataSrc, dataPath);
+                await Helper.CopyDirectoryAsync(menuGdiSrc, cdiPath);
                 /* Copy to low density */
-                if (await Helper.DirectoryExistsAsync(Path.Combine(currentAppPath, "tools", "openMenu", "menu_low_data")))
-                    await Helper.CopyDirectoryAsync(Path.Combine(currentAppPath, "tools", "openMenu", "menu_low_data"), lowdataPath);
+                if (await Helper.DirectoryExistsAsync(menuLowSrc))
+                {
+                    await Helper.CopyDirectoryAsync(menuLowSrc, lowdataPath);
+                }
                 /* Write to low density */
                 await Helper.WriteTextFileAsync(Path.Combine(lowdataPath, "OPENMENU.INI"), openmenuListText);
                 /* Write to high density */
@@ -716,12 +862,18 @@ namespace GDMENUCardManager.Core
             //add additional files, like themes
             fileList.AddRange(new DirectoryInfo(lowdataPath).GetFiles());
 
-            builder.CreateFirstTrack(Path.Combine(cdiPath, "track01.iso"), fileList);
+            var track01Path = Path.Combine(cdiPath, "track01.iso");
+            builder.CreateFirstTrack(track01Path, fileList);
 
-            var updatetDiscTracks = builder.BuildGDROM(dataPath, ipbinPath, new List<string> { Path.Combine(cdiPath, "track04.raw") }, cdiPath);//todo await
+            var track04Path = Path.Combine(cdiPath, "track04.raw");
+
+            var updatetDiscTracks = builder.BuildGDROM(dataPath, ipbinPath, new List<string> { track04Path }, cdiPath);//todo await
+
             builder.UpdateGdiFile(updatetDiscTracks, cdiFilePath);
 
-            if (ItemList.First().Ip?.Name == "GDMENU" || ItemList.First().Ip?.Name == "openMenu")
+            var firstItemIsMenu = ItemList.Count > 0 && (ItemList.First().Ip?.Name == "GDMENU" || ItemList.First().Ip?.Name == "openMenu");
+
+            if (firstItemIsMenu)
             {
                 //long start;
                 //GetIpData(cdiFilePath, out long fileLength);
@@ -731,7 +883,9 @@ namespace GDMENUCardManager.Core
                 //item.CdiTarget = start;
 
                 if (isRebuilding)
+                {
                     return;
+                }
 
                 //if user's menu is not in GDI format, update to GDI format.
                 if (!Path.GetExtension(item.ImageFile).Equals(".gdi", StringComparison.OrdinalIgnoreCase))
@@ -750,7 +904,8 @@ namespace GDMENUCardManager.Core
             }
             else if (!isRebuilding)
             {
-                ItemList.Insert(0, await ImageHelper.CreateGdItemAsync(cdiPath));
+                var newMenuItem = await ImageHelper.CreateGdItemAsync(cdiPath);
+                ItemList.Insert(0, newMenuItem);
             }
         }
 
@@ -765,8 +920,13 @@ namespace GDMENUCardManager.Core
                 sb.AppendLine($"{strnumber}.disc={ip?.Disc ?? "1/1"}");
             sb.AppendLine($"{strnumber}.vga={(ip?.Vga ?? true ? '1' : '0')}");
             sb.AppendLine($"{strnumber}.region={ip?.Region ?? "JUE"}");
-            sb.AppendLine($"{strnumber}.version={ip?.Version ?? string.Empty}");
-            sb.AppendLine($"{strnumber}.date={ip?.ReleaseDate ?? string.Empty}");
+
+            // Use "N/A" as default for version and date if empty or null
+            var versionValue = string.IsNullOrWhiteSpace(ip?.Version) ? "N/A" : ip.Version;
+            var dateValue = string.IsNullOrWhiteSpace(ip?.ReleaseDate) ? "N/A" : ip.ReleaseDate;
+            sb.AppendLine($"{strnumber}.version={versionValue}");
+            sb.AppendLine($"{strnumber}.date={dateValue}");
+
             if(is_openmenu)
             {
                 string productid = serial?.Replace("-", "").Split(' ')[0];
@@ -797,16 +957,20 @@ namespace GDMENUCardManager.Core
             {
                 var item = ItemList[i];
                 if (item.Work == WorkMode.Move)
+                {
                     await MoveOrCopyFolder(item, false, i + 1);//+ ammountToIncrement
+                }
             }
         }
 
         private async Task MoveOrCopyFolder(GdItem item, bool shrink, int folderNumber)
         {
             var newPath = Path.Combine(sdPath, FormatFolderNumber(folderNumber));
+
             if (item.Work == WorkMode.Move)
             {
-                await Helper.MoveDirectoryAsync(Path.Combine(sdPath, item.Guid), newPath);
+                var guidPath = Path.Combine(sdPath, item.Guid);
+                await Helper.MoveDirectoryAsync(guidPath, newPath);
             }
             else if (item.Work == WorkMode.New)
             {
@@ -839,16 +1003,17 @@ namespace GDMENUCardManager.Core
 
                     // If the destination directory exist, delete it.
                     if (Directory.Exists(newPath))
+                    {
                         await Helper.DeleteDirectoryAsync(newPath);
+                    }
                     //then create a new one
                     await Helper.CreateDirectoryAsync(newPath);
+
                     foreach (var f in item.ImageFiles)
                     {
                         //todo async!
                         await Task.Run(() => File.Copy(Path.Combine(item.FullFolderPath, f), Path.Combine(newPath, f)));
                     }
-
-
                 }
             }
 
@@ -879,7 +1044,9 @@ namespace GDMENUCardManager.Core
         {
             var total = ItemList.Count(x => x.Work == WorkMode.New);
             if (total == 0)
+            {
                 return;
+            }
 
             //gdishrink
             var itemsToShrink = new List<GdItem>();
@@ -1058,12 +1225,96 @@ namespace GDMENUCardManager.Core
                 ItemList.RemoveAt(0);
             }
 
-            foreach (var item in ItemList.OrderBy(x => x.Name).ThenBy(x => x.Ip?.Disc ?? "1/1"))
+            foreach (var item in ItemList
+                .OrderByDescending(x => !string.IsNullOrEmpty(x.Folder))
+                .ThenBy(x => x.Folder ?? "")
+                .ThenBy(x => x.Name)
+                .ThenBy(x => x.Ip?.Disc ?? "1/1"))
                 sortedlist.Add(item);
 
             ItemList.Clear();
             foreach (var item in sortedlist)
                 ItemList.Add(item);
+        }
+
+        public void InitializeKnownFolders()
+        {
+            KnownFolders.Clear();
+
+            // Collect all unique folder values from currently loaded items
+            foreach (var item in ItemList.Where(x => !string.IsNullOrWhiteSpace(x.Folder)))
+            {
+                if (!KnownFolders.Contains(item.Folder))
+                    KnownFolders.Add(item.Folder);
+            }
+
+            // Sort for nice display
+            var sorted = KnownFolders.OrderBy(x => x).ToList();
+            KnownFolders.Clear();
+            foreach (var folder in sorted)
+                KnownFolders.Add(folder);
+        }
+
+        public Dictionary<string, int> GetFolderCounts()
+        {
+            var folderCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            foreach (var item in ItemList)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Folder))
+                {
+                    if (folderCounts.ContainsKey(item.Folder))
+                        folderCounts[item.Folder]++;
+                    else
+                        folderCounts[item.Folder] = 1;
+                }
+            }
+
+            return folderCounts;
+        }
+
+        public int ApplyFolderMappings(Dictionary<string, string> mappings)
+        {
+            if (mappings == null || mappings.Count == 0)
+                return 0;
+
+            int updatedCount = 0;
+
+            foreach (var item in ItemList)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Folder))
+                {
+                    // Check for exact match first
+                    if (mappings.ContainsKey(item.Folder))
+                    {
+                        item.Folder = mappings[item.Folder];
+                        updatedCount++;
+                    }
+                    else
+                    {
+                        // Check if this folder is a child of any mapped folder
+                        foreach (var mapping in mappings)
+                        {
+                            var oldPath = mapping.Key;
+                            var newPath = mapping.Value;
+
+                            // Check if item.Folder starts with oldPath + backslash
+                            if (item.Folder.StartsWith(oldPath + "\\", StringComparison.Ordinal))
+                            {
+                                // Replace the old path prefix with the new path
+                                item.Folder = newPath + item.Folder.Substring(oldPath.Length);
+                                updatedCount++;
+                                break; // Only apply one mapping per item
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Refresh the known folders list after mappings are applied
+            InitializeKnownFolders();
+
+            return updatedCount;
         }
 
         private async Task Uncompress(GdItem item, int folderNumber)
@@ -1138,9 +1389,10 @@ namespace GDMENUCardManager.Core
                 {
                     try
                     {
-                        ItemList.Add(await ImageHelper.CreateGdItemAsync(item));
+                        var gdItem = await ImageHelper.CreateGdItemAsync(item);
+                        ItemList.Add(gdItem);
                     }
-                    catch (Exception)
+                    catch
                     {
                         invalid.Add(item);
                     }
@@ -1151,15 +1403,15 @@ namespace GDMENUCardManager.Core
 
         public bool SearchInItem(GdItem item, string text)
         {
-            if (item.Name?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) != -1)
+            if (item.Name?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) >= 0)
             {
                 return true;
             }
             else if (item.Ip != null)
             {
-                if (item.Ip.Name?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) != -1)
+                if (item.Ip.Name?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) >= 0)
                     return true;
-                //if (item.Ip.ProductNumber?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) != -1)
+                //if (item.Ip.ProductNumber?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) >= 0)
                 //    return true;
             }
 

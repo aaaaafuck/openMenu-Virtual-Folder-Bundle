@@ -266,8 +266,10 @@ draw_grid_boxes(void) {
                 break;
             }
 
-            int disc_set = list_current[current_selected()]->disc[2] - '0';
-            if (!strncmp(list_current[current_selected()]->disc, "DIR", 3)) {
+            int disc_set = gd_item_disc_total(list_current[current_selected()]->disc);
+            /* Treat as single disc if folder or no product code */
+            if (!strncmp(list_current[current_selected()]->disc, "DIR", 3)
+                || list_current[current_selected()]->product[0] == '\0') {
                 disc_set = 1;
             }
 
@@ -275,7 +277,7 @@ draw_grid_boxes(void) {
             if (((current_starting_index + idx) == current_selected()) && (hide_multidisc) && (disc_set > 1)) {
                 float x_pos = GUTTER_SIDE + ((HORIZONTAL_SPACING + TILE_SIZE_X) * column) + 4;
                 float y_pos = GUTTER_TOP + ((VERTICAL_SPACING + TILE_SIZE_Y) * row) + TILE_SIZE_Y - 24;
-                int disc_set = list_current[current_selected()]->disc[2] - '0';
+                int disc_set = gd_item_disc_total(list_current[current_selected()]->disc);
 
                 x_pos *= X_SCALE;
 
@@ -463,28 +465,26 @@ menu_cb(void) {
         return;
     }
 
-    if (!strncmp(list_current[current_selected()]->disc, "DIR", 3)) {
-        return;
-    } else if (!strncmp(list_current[current_selected()]->disc, "PS1", 3)) {
-        bloom_launch(list_current[current_selected()]);
+    /* CodeBreaker only available for regular games */
+    if (strcmp(list_current[current_selected()]->type, "game") != 0) {
         return;
     }
 
     start_cb = 0;
     draw_current = DRAW_CODEBREAKER;
-    menu_setup(&draw_current, current_theme_colors, &navigate_timeout, current_theme_colors->menu_highlight_color);
+    cb_menu_setup(&draw_current, current_theme_colors, &navigate_timeout, current_theme_colors->menu_highlight_color);
 }
 
 static void
 run_cb(void) {
     /* grab the disc number and if there is more than one */
-    int disc_set = list_current[current_selected()]->disc[2] - '0';
+    int disc_set = gd_item_disc_total(list_current[current_selected()]->disc);
 
     /* Get multidisc settings */
     int hide_multidisc = sf_multidisc[0];
 
-    /* prepare to show multidisc chooser menu */
-    if (hide_multidisc && (disc_set > 1)) {
+    /* prepare to show multidisc chooser menu (only if product code exists) */
+    if (hide_multidisc && (disc_set > 1) && list_current[current_selected()]->product[0] != '\0') {
         cb_multidisc = 1;
         draw_current = DRAW_MULTIDISC;
         popup_setup(&draw_current, current_theme_colors, &navigate_timeout, current_theme_colors->menu_highlight_color);
@@ -532,13 +532,13 @@ menu_accept(void) {
     }
 
     /* grab the disc number and if there is more than one */
-    int disc_set = list_current[current_selected()]->disc[2] - '0';
+    int disc_set = gd_item_disc_total(list_current[current_selected()]->disc);
 
     /* Get multidisc settings */
     int hide_multidisc = sf_multidisc[0];
 
-    /* prepare to show multidisc chooser menu */
-    if (hide_multidisc && (disc_set > 1)) {
+    /* prepare to show multidisc chooser menu (only if product code exists) */
+    if (hide_multidisc && (disc_set > 1) && list_current[current_selected()]->product[0] != '\0') {
         cb_multidisc = 0;
         draw_current = DRAW_MULTIDISC;
         popup_setup(&draw_current, current_theme_colors, &navigate_timeout, current_theme_colors->menu_highlight_color);
@@ -546,8 +546,16 @@ menu_accept(void) {
         return;
     }
 
-    if (!strncmp(list_current[current_selected()]->disc, "PS1", 3)) {
-        bleem_launch(list_current[current_selected()]);
+    if (!strcmp(list_current[current_selected()]->type, "psx")) {
+        if (is_bloom_available()) {
+            /* Show PSX launcher choice popup */
+            set_cur_game_item(list_current[current_selected()]);
+            draw_current = DRAW_PSX_LAUNCHER;
+            popup_setup(&draw_current, current_theme_colors, &navigate_timeout, current_theme_colors->menu_highlight_color);
+        } else {
+            /* No Bloom available, launch directly with Bleem */
+            bleem_launch(list_current[current_selected()]);
+        }
     } else {
         dreamcast_launch_disc(list_current[current_selected()]);
     }
@@ -601,7 +609,7 @@ menu_exit(void) {
 
     set_cur_game_item(list_current[current_selected()]);
     draw_current = DRAW_EXIT;
-    popup_setup(&draw_current, current_theme_colors, &navigate_timeout, current_theme_colors->menu_highlight_color);
+    exit_menu_setup(&draw_current, current_theme_colors, &navigate_timeout, current_theme_colors->menu_highlight_color, 0 /* not a folder */);
 }
 
 /* Base UI Methods */
@@ -755,6 +763,9 @@ FUNCTION_INPUT(UI_NAME, handle_input) {
                 run_cb();
             }
         } break;
+        case DRAW_PSX_LAUNCHER: {
+            handle_input_psx_launcher(input_current);
+        } break;
         default:
         case DRAW_UI: {
             handle_input_ui(input_current);
@@ -786,6 +797,10 @@ FUNCTION(UI_NAME, drawOP) {
         case DRAW_CODEBREAKER: {
             /* CodeBreaker popup on top */
             draw_codebreaker_op();
+        } break;
+        case DRAW_PSX_LAUNCHER: {
+            /* PSX launcher popup on top */
+            draw_psx_launcher_op();
         } break;
         default:
         case DRAW_UI: {
@@ -820,6 +835,10 @@ FUNCTION(UI_NAME, drawTR) {
         case DRAW_CODEBREAKER: {
             /* CodeBreaker popup on top */
             draw_codebreaker_tr();
+        } break;
+        case DRAW_PSX_LAUNCHER: {
+            /* PSX launcher popup on top */
+            draw_psx_launcher_tr();
         } break;
         default:
         case DRAW_UI: {

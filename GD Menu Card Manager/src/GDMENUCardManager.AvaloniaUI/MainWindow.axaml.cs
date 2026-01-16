@@ -30,7 +30,7 @@ namespace GDMENUCardManager
 
         public ObservableCollection<DriveInfo> DriveList { get; } = new ObservableCollection<DriveInfo>();
 
-        public static List<string> DiscTypes { get; } = new List<string> { "Game", "Other" };
+        public static List<string> DiscTypes { get; } = new List<string> { "Game", "Other", "PSX" };
 
         private bool _IsBusy;
         public bool IsBusy
@@ -159,16 +159,16 @@ namespace GDMENUCardManager
             // Find columns by iterating and checking their Header
             DataGridColumn folderColumn = null;
             DataGridColumn typeColumn = null;
-            DataGridTextColumn discColumn = null;
+            DataGridTemplateColumn discColumn = null;
 
             foreach (var col in dg1.Columns)
             {
-                if (col is DataGridTextColumn textCol && textCol.Header?.ToString() == "Folder")
+                if (col.Header?.ToString() == "Folder")
                     folderColumn = col;
                 else if (col is DataGridTemplateColumn templateCol && templateCol.Header?.ToString() == "Type")
                     typeColumn = col;
-                else if (col is DataGridTextColumn discTextCol && discTextCol.Header?.ToString() == "Disc")
-                    discColumn = discTextCol;
+                else if (col is DataGridTemplateColumn discTemplateCol && discTemplateCol.Header?.ToString() == "Disc")
+                    discColumn = discTemplateCol;
             }
 
             if (folderColumn != null)
@@ -196,13 +196,31 @@ namespace GDMENUCardManager
                 }
             }
 
-            if (discColumn != null)
-            {
-                // Make Disc column editable only in openMenu mode
-                discColumn.IsReadOnly = (MenuKindSelected != MenuKind.openMenu);
-            }
+            // Disc column read-only handling is now done via BeginningEdit event
+            // since it's a template column
         }
 
+        private void DataGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            // Check if this is a menu item
+            if (e.Row?.DataContext is GdItem item)
+            {
+                bool isMenuItem = item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu";
+
+                if (isMenuItem)
+                {
+                    // Prevent editing ANY cell for menu items
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
+            // Prevent editing the Disc column when not in openMenu mode (for non-menu items)
+            if (e.Column?.Header?.ToString() == "Disc" && MenuKindSelected != MenuKind.openMenu)
+            {
+                e.Cancel = true;
+            }
+        }
 
         private async void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -271,8 +289,58 @@ namespace GDMENUCardManager
             IsBusy = true;
             try
             {
+                // Check for multi-disc items without serial (openMenu only)
+                if (MenuKindSelected == MenuKind.openMenu && HasMultiDiscItemsWithoutSerial())
+                {
+                    var result = await MessageBoxManager.GetMessageBoxCustomWindow(new MessageBox.Avalonia.DTO.MessageBoxCustomParams
+                    {
+                        ContentTitle = "Warning",
+                        ContentMessage = "One or more disc images that are part of multi-disc sets do not have a required Serial value assigned to them, which will break their display in openMenu.\n\nDo you want to proceed or return to make edits?",
+                        Icon = MessageBox.Avalonia.Enums.Icon.Warning,
+                        ShowInCenter = true,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        ButtonDefinitions = new ButtonDefinition[]
+                        {
+                            new ButtonDefinition { Name = "Return" },
+                            new ButtonDefinition { Name = "Proceed" }
+                        }
+                    }).ShowDialog(this);
+
+                    if (result == "Return")
+                    {
+                        IsBusy = false;
+                        return;
+                    }
+                }
+
+                // Check for multi-disc sets exceeding 10 discs (openMenu only)
+                if (MenuKindSelected == MenuKind.openMenu && HasMultiDiscSetsExceeding10())
+                {
+                    var result = await MessageBoxManager.GetMessageBoxCustomWindow(new MessageBox.Avalonia.DTO.MessageBoxCustomParams
+                    {
+                        ContentTitle = "Warning",
+                        ContentMessage = "One or more multi-disc set exceeds 10 discs total, the maximum supported by openMenu.\n\nDo you want to proceed or return to make edits?",
+                        Icon = MessageBox.Avalonia.Enums.Icon.Warning,
+                        ShowInCenter = true,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        ButtonDefinitions = new ButtonDefinition[]
+                        {
+                            new ButtonDefinition { Name = "Return" },
+                            new ButtonDefinition { Name = "Proceed" }
+                        }
+                    }).ShowDialog(this);
+
+                    if (result == "Return")
+                    {
+                        IsBusy = false;
+                        return;
+                    }
+                }
+
                 if (await Manager.Save(TempFolder))
+                {
                     await MessageBoxManager.GetMessageBoxStandardWindow("Message", "Done!").ShowDialog(this);
+                }
             }
             catch (Exception ex)
             {
@@ -283,6 +351,55 @@ namespace GDMENUCardManager
                 IsBusy = false;
                 updateTotalSize();
             }
+        }
+
+        private bool HasMultiDiscItemsWithoutSerial()
+        {
+            return Manager.ItemList.Any(item =>
+            {
+                // Skip menu items
+                if (item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu")
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(item.ProductNumber))
+                {
+                    var disc = item.Ip?.Disc;
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        var parts = disc.Split('/');
+                        if (parts.Length == 2 &&
+                            int.TryParse(parts[1], out int totalDiscs) &&
+                            totalDiscs > 1)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            });
+        }
+
+        private bool HasMultiDiscSetsExceeding10()
+        {
+            return Manager.ItemList.Any(item =>
+            {
+                // Skip menu items
+                if (item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu")
+                    return false;
+
+                var disc = item.Ip?.Disc;
+                if (!string.IsNullOrEmpty(disc))
+                {
+                    var parts = disc.Split('/');
+                    if (parts.Length == 2 &&
+                        int.TryParse(parts[1], out int totalDiscs) &&
+                        totalDiscs > 10)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            });
         }
 
         private async void WindowDrop(object sender, DragEventArgs e)
@@ -570,6 +687,41 @@ namespace GDMENUCardManager
             IsBusy = false;
         }
 
+        private async void MenuItemAssignFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // Only allow in openMenu mode
+            if (MenuKindSelected != MenuKind.openMenu)
+            {
+                await MessageBoxManager.GetMessageBoxStandardWindow("Info", "Assign Folder Path is only available in openMenu mode.", icon: MessageBox.Avalonia.Enums.Icon.Info).ShowDialog(this);
+                return;
+            }
+
+            var selectedItems = dg1.SelectedItems.Cast<GdItem>().ToList();
+
+            // Filter out menu items
+            selectedItems = selectedItems.Where(item =>
+                item.Ip?.Name != "GDMENU" && item.Ip?.Name != "openMenu").ToList();
+
+            if (selectedItems.Count == 0)
+            {
+                await MessageBoxManager.GetMessageBoxStandardWindow("Info", "No valid items selected.", icon: MessageBox.Avalonia.Enums.Icon.Info).ShowDialog(this);
+                return;
+            }
+
+            Manager.InitializeKnownFolders();
+            var dialog = new AssignFolderWindow(selectedItems.Count, Manager.KnownFolders);
+            var result = await dialog.ShowDialog<bool?>(this);
+
+            if (result == true)
+            {
+                var folderPath = dialog.FolderPath?.Trim() ?? string.Empty;
+                foreach (var item in selectedItems)
+                {
+                    item.Folder = folderPath;
+                }
+            }
+        }
+
         //private void rename(GdItem item, short index)
         //{
         //    string name;
@@ -683,9 +835,14 @@ namespace GDMENUCardManager
             if (!selectedItems.Any())
                 return;
 
+            // Don't allow moving menu items
+            if (selectedItems.Any(item => item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu"))
+                return;
+
             int moveTo = Manager.ItemList.IndexOf(selectedItems.First()) -1;
 
-            if (moveTo < 0)
+            // Don't allow moving items above the menu (position 0)
+            if (moveTo < 1)
                 return;
             
             foreach (var item in selectedItems)
@@ -704,6 +861,10 @@ namespace GDMENUCardManager
             var selectedItems = dg1.SelectedItems.Cast<GdItem>().ToArray();
 
             if (!selectedItems.Any())
+                return;
+
+            // Don't allow moving menu items
+            if (selectedItems.Any(item => item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu"))
                 return;
 
             int moveTo = Manager.ItemList.IndexOf(selectedItems.Last()) - selectedItems.Length + 2;
@@ -756,6 +917,7 @@ namespace GDMENUCardManager
             }
             return false;
         }
+
 
     }
 }

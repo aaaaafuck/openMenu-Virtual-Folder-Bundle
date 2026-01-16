@@ -4,15 +4,37 @@
 #include <kos/thread.h>
 
 #include <backend/gd_item.h>
+#include <openmenu_settings.h>
 #include "backend/cb_loader.h"
 #include "backend/controls.p1.h"
 #include "backend/gdemu_sdk.h"
 #include "backend/gdmenu_binary.h"
 #include "vm2/vm2_api.h"
 
-extern maple_device_t* vm2_dev;
+extern int vm2_device_count;
+extern void vm2_rescan(void);
+extern void vm2_send_id_to_all(const char* product, const char* name);
 
-static void
+/* BLOOM.BIN availability flag - checked once at startup */
+static int bloom_available = 0;
+
+void
+check_bloom_available(void) {
+    file_t fd = fs_open("/cd/BLOOM.BIN", O_RDONLY);
+    if (fd != -1) {
+        fs_close(fd);
+        bloom_available = 1;
+    } else {
+        bloom_available = 0;
+    }
+}
+
+int
+is_bloom_available(void) {
+    return bloom_available;
+}
+
+void
 wait_cd_ready(gd_item* disc) {
     /* For non-game content (audio CDs, etc.), use minimal delay
      * since cdrom_reinit() will never succeed anyway */
@@ -103,12 +125,40 @@ bleem_launch(gd_item* disc) {
 
 void
 dreamcast_launch_disc(gd_item* disc) {
+    /* For non-game discs (audio CDs, etc.), just mount and exit to BIOS */
+    if (!strcmp(disc->type, "other")) {
+        gdemu_set_img_num((uint16_t)disc->slot_num);
+        wait_cd_ready(disc);
+
+        /* Configure BIOS loader settings before exiting */
+        extern uint8_t bloader_data[];
+        extern uint32_t bloader_size;
+
+        typedef struct {
+            uint8_t enable_wide;
+            uint8_t enable_3d;
+        } bloader_cfg_t;
+
+        bloader_cfg_t* bloader_config = (bloader_cfg_t*)&bloader_data[bloader_size - sizeof(bloader_cfg_t)];
+        bloader_config->enable_wide = sf_aspect[0];
+        if (!strncmp("Dreamcast Fishing Controller", maple_enum_type(0, MAPLE_FUNC_CONTROLLER)->info.product_name, 28)) {
+            bloader_config->enable_3d = 0;
+        } else {
+            bloader_config->enable_3d = sf_bios_3d[0];
+        }
+
+        /* Exit to BIOS (don't send VM2 ID for non-game discs) */
+        arch_exec_at(bloader_data, bloader_size, 0xacf00000);
+        return;
+    }
+
+    /* Normal game launch sequence */
     ldr_params_t param;
     param.region_free = 1;
     param.force_vga = 1;
     param.IGR = 1;
-    param.boot_intro = 1;
-    param.sega_license = 1;
+    param.boot_intro = (sf_boot_mode[0] == BOOT_MODE_FULL || sf_boot_mode[0] == BOOT_MODE_ANIMATION) ? 1 : 0;
+    param.sega_license = (sf_boot_mode[0] == BOOT_MODE_FULL || sf_boot_mode[0] == BOOT_MODE_LICENSE) ? 1 : 0;
 
     if (!strncmp(disc->region, "JUE", 3)) {
         param.game_region = (int)(((uint8_t*)0x8C000072)[0] & 7);
@@ -125,8 +175,9 @@ dreamcast_launch_disc(gd_item* disc) {
     // thd_sleep(500);
 
     /* Only send game ID to VM2/VMU devices for actual games */
-    if (vm2_dev && strcmp(disc->type, "other") != 0) {
-        vm2_set_id(vm2_dev, disc->product, disc->name);
+    if (strcmp(disc->type, "other") != 0) {
+        vm2_rescan();  /* Rescan to detect hot-swapped devices */
+        vm2_send_id_to_all(disc->product, disc->name);
     }
 
     wait_cd_ready(disc);
@@ -214,8 +265,9 @@ dreamcast_launch_cb(gd_item* disc) {
     // thd_sleep(500);
 
     /* Only send game ID to VM2/VMU devices for actual games */
-    if (vm2_dev && strcmp(disc->type, "other") != 0) {
-        vm2_set_id(vm2_dev, disc->product, disc->name);
+    if (strcmp(disc->type, "other") != 0) {
+        vm2_rescan();  /* Rescan to detect hot-swapped devices */
+        vm2_send_id_to_all(disc->product, disc->name);
     }
 
     wait_cd_ready(disc);

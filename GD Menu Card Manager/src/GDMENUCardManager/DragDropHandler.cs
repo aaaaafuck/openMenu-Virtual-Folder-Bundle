@@ -20,7 +20,24 @@ namespace GDMENUCardManager
             }
             else if (DefaultDropHandler.CanAcceptData(dropInfo))
             {
-                dropInfo.Effects = DragDropEffects.Move;
+                // Check if the dragged item is a menu item
+                var draggedItems = DefaultDropHandler.ExtractData(dropInfo.Data).OfType<GdItem>().ToList();
+                bool hasMenuItem = draggedItems.Any(item => item.Ip?.Name == "GDMENU" || item.Ip?.Name == "openMenu");
+
+                if (hasMenuItem)
+                {
+                    // Don't allow dragging menu items
+                    dropInfo.Effects = DragDropEffects.None;
+                }
+                else if (dropInfo.UnfilteredInsertIndex == 0)
+                {
+                    // Don't allow dropping items at position 0 (would push menu down)
+                    dropInfo.Effects = DragDropEffects.None;
+                }
+                else
+                {
+                    dropInfo.Effects = DragDropEffects.Move;
+                }
             }
 
             if (dropInfo.Effects != DragDropEffects.None)

@@ -1312,7 +1312,7 @@
           "lib/netstandard1.3/System.Xml.XDocument.dll": {}
         }
       },
-      "GDMENUCardManager.Core/1.0.0": {
+      "GDMENUCardManager.Core/1.1.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
@@ -2923,7 +2923,7 @@
           "lib/netstandard1.3/System.Xml.XDocument.dll": {}
         }
       },
-      "GDMENUCardManager.Core/1.0.0": {
+      "GDMENUCardManager.Core/1.1.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
@@ -7037,7 +7037,7 @@
         "system.xml.xdocument.nuspec"
       ]
     },
-    "GDMENUCardManager.Core/1.0.0": {
+    "GDMENUCardManager.Core/1.1.0": {
       "type": "project",
       "path": "../GDMENUCardManager.Core/GDMENUCardManager.Core.csproj",
       "msbuildProject": "../GDMENUCardManager.Core/GDMENUCardManager.Core.csproj"
@@ -7046,7 +7046,7 @@
   "projectFileDependencyGroups": {
     "net6.0-windows7.0": [
       "ByteSize >= 2.0.0",
-      "GDMENUCardManager.Core >= 1.0.0",
+      "GDMENUCardManager.Core >= 1.1.0",
       "gong-wpf-dragdrop >= 2.3.2"
     ]
   },
@@ -7055,7 +7055,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "restore": {
       "projectUniqueName": "Z:\\dc\\gdemu\\OPENMENU\\GDMENUCardManager [Virtual Folders]\\src\\GDMENUCardManager\\GDMENUCardManager.csproj",
       "projectName": "GDMENUCardManager",

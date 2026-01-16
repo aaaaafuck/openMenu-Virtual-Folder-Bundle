@@ -15,6 +15,7 @@
 #include <dc/flashrom.h>
 #include <dc/maple.h>
 #include <dc/maple/controller.h>
+#include <dc/maple/keyboard.h>
 #include <dc/pvr.h>
 #include <dc/video.h>
 #include <kos/thread.h>
@@ -23,6 +24,7 @@
 #include <backend/gd_list.h>
 #include <openmenu_savefile.h>
 #include <openmenu_settings.h>
+#include "backend/gdemu_sdk.h"
 #include "ui/common.h"
 #include "ui/dc/input.h"
 #include "ui/draw_prototypes.h"
@@ -43,7 +45,10 @@
 #include "bloader.h"
 #include "texture/txr_manager.h"
 
-maple_device_t* vm2_dev = NULL;
+/* VM2/VMUPro/USB4Maple device tracking */
+#define VM2_MAX_DEVICES 8
+maple_device_t* vm2_devices[VM2_MAX_DEVICES] = {NULL};
+int vm2_device_count = 0;
 
 void (*current_ui_init)(void);
 void (*current_ui_setup)(void);
@@ -97,6 +102,37 @@ reload_ui(void) {
     need_reload_ui = 1;
 }
 
+void
+vm2_rescan(void) {
+    vm2_device_count = 0;
+    for (int i = 0; i < 8; i++) {
+        maple_device_t* vmu = maple_enum_type(i, MAPLE_FUNC_MEMCARD);
+        if (vmu && check_vm2_present(vmu)) {
+            vm2_devices[vm2_device_count++] = vmu;
+        }
+    }
+}
+
+void
+vm2_send_id_to_all(const char* product, const char* name) {
+    if (vm2_device_count == 0) {
+        return;
+    }
+
+    if (sf_vm2_send_all[0] == VM2_SEND_OFF) {
+        /* User disabled game ID transmission */
+        return;
+    } else if (sf_vm2_send_all[0] == VM2_SEND_FIRST) {
+        /* Send to first device only */
+        vm2_set_id(vm2_devices[0], product, name);
+    } else {
+        /* Send to all detected VM2 devices (default) */
+        for (int i = 0; i < vm2_device_count; i++) {
+            vm2_set_id(vm2_devices[i], product, name);
+        }
+    }
+}
+
 static int
 init() {
     int ret = 0;
@@ -108,6 +144,7 @@ init() {
     ret += txr_create_large_pool();
     ret += txr_load_DATs();
     ret += list_read_default();
+    check_bloom_available();  /* Check for BLOOM.BIN once at startup */
     ret += db_load_DAT();
     ret += theme_manager_load();
 
@@ -122,8 +159,10 @@ init() {
 
             case SORT_PRODUCT: list_set_sort_genre(); break;
 
+            case SORT_SD_CARD: list_set_sort_default(); break;
+
             default:
-            case SORT_DEFAULT: list_set_sort_default(); break;
+            case SORT_DEFAULT: list_set_sort_alphabetical(); break;
         }
     } else {
         list_set_genre_sort((FLAGS_GENRE)sf_filter[0] - 1, sf_sort[0]);
@@ -166,45 +205,62 @@ processInput(void) {
     unsigned int buttons;
 
     maple_device_t* cont;
+    maple_device_t* kbd;
     cont_state_t* state;
-
-    cont = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
-    if (!cont) {
-        /* No controller - send neutral input to prevent phantom movement */
-        memset(&_input, 0, sizeof(inputs));
-        _input.axes_1 = 128; /* Neutral analog X */
-        _input.axes_2 = 128; /* Neutral analog Y */
-        INPT_ReceiveFromHost(_input);
-        return;
-    }
-    state = (cont_state_t*)maple_dev_status(cont);
-
-    buttons = state->buttons;
+    kbd_state_t* kbd_state;
 
     /*  Reset Everything */
     memset(&_input, 0, sizeof(inputs));
 
-    /* DPAD */
-    _input.dpad = (state->buttons >> 4) & ~240; // mrneo240 ;)
+    /* Set neutral analog values */
+    _input.axes_1 = 128; /* Neutral analog X */
+    _input.axes_2 = 128; /* Neutral analog Y */
 
-    /* BUTTONS */
-    _input.btn_a = (uint8_t)!!(buttons & CONT_A);
-    _input.btn_b = (uint8_t)!!(buttons & CONT_B);
-    _input.btn_x = (uint8_t)!!(buttons & CONT_X);
-    _input.btn_y = (uint8_t)!!(buttons & CONT_Y);
-    _input.btn_start = (uint8_t)!!(buttons & CONT_START);
+    cont = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+    kbd = maple_enum_type(0, MAPLE_FUNC_KEYBOARD);
 
-    /* ANALOG */
-    _input.axes_1 = ((uint8_t)(state->joyx) + 128);
-    _input.axes_2 = ((uint8_t)(state->joyy) + 128);
+    if (!cont && !kbd) {
+        /* No controller or keyboard - send neutral input */
+        INPT_ReceiveFromHost(_input);
+        return;
+    }
 
-    /* TRIGGERS */
-    if (!strncmp("Dreamcast Fishing Controller", cont->info.product_name, 28)) {
-        _input.trg_left = 0;
-        _input.trg_right = 0;
-    } else {
-        _input.trg_left = (uint8_t)state->ltrig & 255;
-        _input.trg_right = (uint8_t)state->rtrig & 255;
+    if (cont) {
+        /* Controller found - also works with the controller portion of a light gun */
+        state = (cont_state_t*)maple_dev_status(cont);
+        buttons = state->buttons;
+
+        /* DPAD */
+        _input.dpad = (state->buttons >> 4) & ~240; // mrneo240 ;)
+
+        /* BUTTONS */
+        _input.btn_a = (uint8_t)!!(buttons & CONT_A);
+        _input.btn_b = (uint8_t)!!(buttons & CONT_B);
+        _input.btn_x = (uint8_t)!!(buttons & CONT_X);
+        _input.btn_y = (uint8_t)!!(buttons & CONT_Y);
+        _input.btn_start = (uint8_t)!!(buttons & CONT_START);
+
+        /* ANALOG */
+        _input.axes_1 = ((uint8_t)(state->joyx) + 128);
+        _input.axes_2 = ((uint8_t)(state->joyy) + 128);
+
+        /* TRIGGERS */
+        if (!strncmp("Dreamcast Fishing Controller", cont->info.product_name, 28)) {
+            _input.trg_left = 0;
+            _input.trg_right = 0;
+        } else {
+            _input.trg_left = (uint8_t)state->ltrig & 255;
+            _input.trg_right = (uint8_t)state->rtrig & 255;
+        }
+    }
+
+    if (kbd) {
+        /* Keyboard found - copy list of pressed key scancodes from cond.keys */
+        kbd_state = (kbd_state_t*)maple_dev_status(kbd);
+        _input.kbd_modifiers = kbd_state->shift_keys;
+        for (int i = 0; i < INPT_MAX_KEYBOARD_KEYS; i++) {
+            _input.kbd_buttons[i] = kbd_state->cond.keys[i];
+        }
     }
 
     INPT_ReceiveFromHost(_input);
@@ -213,6 +269,8 @@ processInput(void) {
 static int
 translate_input(void) {
     processInput();
+
+    /* D-Pad directions */
     if (INPT_DPADDirection(DPAD_LEFT)) {
         return LEFT;
     }
@@ -226,6 +284,7 @@ translate_input(void) {
         return DOWN;
     }
 
+    /* Analog stick */
     if (INPT_AnalogI(AXES_X) < 128 - 24) {
         return LEFT;
     }
@@ -240,6 +299,7 @@ translate_input(void) {
         return DOWN;
     }
 
+    /* Buttons */
     if (INPT_Button(BTN_A)) {
         return A;
     }
@@ -262,6 +322,53 @@ translate_input(void) {
     }
     if (INPT_TriggerPressed(TRIGGER_R)) {
         return TRIG_R;
+    }
+
+    /* Keyboard support - skip if no keys pressed */
+    if (!INPT_KeyboardNone()) {
+        /* Arrow keys → D-Pad */
+        if (INPT_KeyboardButton(KBD_KEY_LEFT)) {
+            return LEFT;
+        }
+        if (INPT_KeyboardButton(KBD_KEY_RIGHT)) {
+            return RIGHT;
+        }
+        if (INPT_KeyboardButton(KBD_KEY_UP)) {
+            return UP;
+        }
+        if (INPT_KeyboardButton(KBD_KEY_DOWN)) {
+            return DOWN;
+        }
+
+        /* Z or Space → A button */
+        if (INPT_KeyboardButton(KBD_KEY_Z) || INPT_KeyboardButton(KBD_KEY_SPACE)) {
+            return A;
+        }
+        /* X or Escape → B button */
+        if (INPT_KeyboardButton(KBD_KEY_X) || INPT_KeyboardButton(KBD_KEY_ESCAPE)) {
+            return B;
+        }
+        /* A → X button */
+        if (INPT_KeyboardButton(KBD_KEY_A)) {
+            return X;
+        }
+        /* S → Y button */
+        if (INPT_KeyboardButton(KBD_KEY_S)) {
+            return Y;
+        }
+        /* Enter → Start */
+        if (INPT_KeyboardButton(KBD_KEY_ENTER)) {
+            return START;
+        }
+
+        /* Q or Page Up → Left Trigger */
+        if (INPT_KeyboardButton(KBD_KEY_Q) || INPT_KeyboardButton(KBD_KEY_PGUP)) {
+            return TRIG_L;
+        }
+        /* W or Page Down → Right Trigger */
+        if (INPT_KeyboardButton(KBD_KEY_W) || INPT_KeyboardButton(KBD_KEY_PGDOWN)) {
+            return TRIG_R;
+        }
     }
 
     return NONE;
@@ -308,25 +415,19 @@ main(int argc, char* argv[]) {
 
     // gdemu_set_img_num(1);
     // thd_sleep(500);
-    for (int i = 0; i < 8; i++) {
-        maple_device_t* vmu = maple_enum_type(i, MAPLE_FUNC_MEMCARD);
 
-        if (vmu && check_vm2_present(vmu)) {
-            int port, unit;
+    /* Scan for VM2/VMUPro/USB4Maple devices and send initial ID */
+    vm2_rescan();
+    for (int i = 0; i < vm2_device_count; i++) {
+        maple_device_t* vmu = vm2_devices[i];
+        int port = vmu->port;
+        int unit = vmu->unit;
 
-            port = vmu->port;
-            unit = vmu->unit;
+        vm2_set_id(vmu, "openmenu", NULL);
+        thd_sleep(200);
 
-            vm2_set_id(vmu, "openmenu", NULL);
-            vm2_dev = vmu;
-
-            thd_sleep(200);
-
-            while (!maple_enum_dev(port, unit)) {
-                thd_pass();
-            }
-
-            break;
+        while (!maple_enum_dev(port, unit)) {
+            thd_pass();
         }
     }
 
@@ -356,7 +457,7 @@ main(int argc, char* argv[]) {
 }
 
 void
-exit_to_bios(void) {
+exit_to_bios_ex(int do_mount, int do_send_id) {
     bloader_cfg_t* bloader_config = (bloader_cfg_t*)&bloader_data[bloader_size - sizeof(bloader_cfg_t)];
 
     bloader_config->enable_wide = sf_aspect[0];
@@ -366,14 +467,31 @@ exit_to_bios(void) {
         bloader_config->enable_3d = sf_bios_3d[0];
     }
 
-    if (vm2_dev) {
-        const gd_item* item = get_cur_game_item();
-        /* Only set VMU game ID if we have a valid item and it's not a folder */
-        /* Folders have disc="DIR" and product[0]='F' */
-        if (item && strncmp(item->disc, "DIR", 3) != 0 && item->product[0] != 'F') {
-            vm2_set_id(vm2_dev, item->product, item->name);
+    const gd_item* item = get_cur_game_item();
+    /* Only mount/set ID if we have a valid item and it's not a folder */
+    /* Folders have disc="DIR" and product[0]='F' */
+    if (item && strncmp(item->disc, "DIR", 3) != 0 && item->product[0] != 'F') {
+        if (do_mount) {
+            /* Mount the disc image */
+            gdemu_set_img_num((uint16_t)item->slot_num);
+
+            /* Wait for disc to be ready */
+            extern void wait_cd_ready(gd_item* disc);
+            wait_cd_ready((gd_item*)item);
+        }
+
+        /* Send game ID to VM2/VMUPro/USB4Maple if present */
+        if (do_send_id) {
+            vm2_rescan();  /* Rescan to detect hot-swapped devices */
+            vm2_send_id_to_all(item->product, item->name);
         }
     }
 
     arch_exec_at(bloader_data, bloader_size, 0xacf00000);
+}
+
+void
+exit_to_bios(void) {
+    /* Default behavior: mount disc and send ID */
+    exit_to_bios_ex(1, 1);
 }

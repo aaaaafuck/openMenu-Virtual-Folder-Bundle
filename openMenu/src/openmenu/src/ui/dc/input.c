@@ -54,6 +54,12 @@ INPT_ReceiveFromHost(inputs _in) {
     _current.trg_left = _in.trg_left;
     _current.trg_right = _in.trg_right;
 
+    /* Keyboard - copy pressed key scancodes */
+    _current.kbd_modifiers = _in.kbd_modifiers;
+    for (int i = 0; i < INPT_MAX_KEYBOARD_KEYS; i++) {
+        _current.kbd_buttons[i] = _in.kbd_buttons[i];
+    }
+
     _last = _in;
 }
 
@@ -140,4 +146,25 @@ INPT_TriggerValue(TRIGGER trigger) {
         default: break;
     }
     return 0;
+}
+
+bool
+INPT_KeyboardNone(void) {
+    for (int i = 0; i < INPT_MAX_KEYBOARD_KEYS; i++) {
+        if (_current.kbd_buttons[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool
+INPT_KeyboardButton(uint8_t kbtn) {
+    /* Search for the scancode in the list of pressed keys */
+    for (int i = 0; i < INPT_MAX_KEYBOARD_KEYS; i++) {
+        if (_current.kbd_buttons[i] == kbtn) {
+            return true;
+        }
+    }
+    return false;
 }

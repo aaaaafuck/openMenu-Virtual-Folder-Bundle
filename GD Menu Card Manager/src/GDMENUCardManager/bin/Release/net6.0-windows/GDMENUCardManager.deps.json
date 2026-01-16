@@ -6,10 +6,10 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v6.0": {
-      "GDMENUCardManager/1.0.0": {
+      "GDMENUCardManager/1.1.0": {
         "dependencies": {
           "ByteSize": "2.0.0",
-          "GDMENUCardManager.Core": "1.0.0",
+          "GDMENUCardManager.Core": "1.1.0",
           "gong-wpf-dragdrop": "2.3.2"
         },
         "runtime": {
@@ -701,7 +701,7 @@
           "System.Xml.ReaderWriter": "4.3.0"
         }
       },
-      "GDMENUCardManager.Core/1.0.0": {
+      "GDMENUCardManager.Core/1.1.0": {
         "dependencies": {
           "ByteSize": "2.0.0"
         },
@@ -712,7 +712,7 @@
     }
   },
   "libraries": {
-    "GDMENUCardManager/1.0.0": {
+    "GDMENUCardManager/1.1.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
@@ -1242,7 +1242,7 @@
       "path": "system.xml.xdocument/4.3.0",
       "hashPath": "system.xml.xdocument.4.3.0.nupkg.sha512"
     },
-    "GDMENUCardManager.Core/1.0.0": {
+    "GDMENUCardManager.Core/1.1.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

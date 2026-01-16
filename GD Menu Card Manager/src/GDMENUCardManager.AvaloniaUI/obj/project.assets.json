@@ -2119,7 +2119,7 @@
           }
         }
       },
-      "GDMENUCardManager.Core/1.0.0": {
+      "GDMENUCardManager.Core/1.1.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
@@ -4376,7 +4376,7 @@
           }
         }
       },
-      "GDMENUCardManager.Core/1.0.0": {
+      "GDMENUCardManager.Core/1.1.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
@@ -9608,7 +9608,7 @@
         "tmds.dbus.nuspec"
       ]
     },
-    "GDMENUCardManager.Core/1.0.0": {
+    "GDMENUCardManager.Core/1.1.0": {
       "type": "project",
       "path": "../GDMENUCardManager.Core/GDMENUCardManager.Core.csproj",
       "msbuildProject": "../GDMENUCardManager.Core/GDMENUCardManager.Core.csproj"
@@ -9620,7 +9620,7 @@
       "Avalonia.Controls.DataGrid >= 0.10.21",
       "Avalonia.Desktop >= 0.10.21",
       "ByteSize >= 2.0.0",
-      "GDMENUCardManager.Core >= 1.0.0",
+      "GDMENUCardManager.Core >= 1.1.0",
       "MessageBox.Avalonia >= 2.1.0",
       "SharpCompress >= 0.33.0",
       "System.Configuration.ConfigurationManager >= 7.0.0"
@@ -9631,7 +9631,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "restore": {
       "projectUniqueName": "Z:\\dc\\gdemu\\OPENMENU\\GDMENUCardManager [Virtual Folders]\\src\\GDMENUCardManager.AvaloniaUI\\GDMENUCardManager.AvaloniaUI.csproj",
       "projectName": "GDMENUCardManager",

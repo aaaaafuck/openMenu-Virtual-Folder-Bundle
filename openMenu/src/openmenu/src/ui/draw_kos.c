@@ -141,6 +141,7 @@ draw_load_texture_from_DAT_to_buffer(const struct dat_file* bin, const char* ID,
     image* img = (image*)user;
     pvr_ptr_t txr;
     int ret = DAT_read_file_by_ID(bin, ID, pvr_get_internal_buffer());
+    printf("DAT: read ID='%s' ret=%d\n", ID, ret);
     if (!ret) {
         img->texture = img_empty_boxart.texture;
         img->width = img_empty_boxart.width;
@@ -151,6 +152,7 @@ draw_load_texture_from_DAT_to_buffer(const struct dat_file* bin, const char* ID,
 
     txr = load_pvr_from_buffer_to_buffer(pvr_get_internal_buffer(), &img->width, &img->height, &img->format, buffer);
     img->texture = txr;
+    printf("DAT: img w=%lu h=%lu fmt=%lu\n", img->width, img->height, img->format);
 
     return user;
 }
@@ -169,6 +171,12 @@ draw_draw_sub_image(int x, int y, float width, float height, uint32_t color, voi
 
     if (img == NULL || img->width == 0 || img->height == 0) {
         return;
+    }
+
+    static int sub_frame = 0;
+    if (sub_frame++ % 60 == 0) {
+        printf("SUBIMG: x=%d y=%d w=%.1f h=%.1f img_w=%lu img_h=%lu\n",
+               x, y, width, height, img->width, img->height);
     }
 
     /* Upper left */
