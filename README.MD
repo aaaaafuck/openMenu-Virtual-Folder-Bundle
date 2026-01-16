@@ -263,12 +263,12 @@ Use the **Move Up** and **Move Down** buttons (arrow icons) to change the order 
 
 #### Editing Game Information
 
-**Renaming a Single Game**:
+**Renaming a Single Game**
 
 - Double-click the **Title** cell, or
 - Right-click and select **Rename**.
 
-**Batch Renaming**:
+**Batch Renaming**
 
 1. Click the **Batch Rename** button.
 2. Select which games to rename:
@@ -279,7 +279,7 @@ Use the **Move Up** and **Move Down** buttons (arrow icons) to change the order 
    - **File** - Use the disc image filename.
 4. Enable **Read TOSEC naming** to automatically parse and clean up [TOSEC naming convention](https://www.tosecdev.org/) filenames.
 
-**Automatic Renaming** (Right-click menu → Automatically Rename Title):
+**Automatic Renaming** (Right-click menu → Automatically Rename Title)
 
 - **Using IP.BIN info** - Uses the game name embedded in the disc image's `IP.BIN` header.
 - **Using its folder name on computer** - Uses the containing folder's name, such as `Nakoruru - The Gift She Gave Me (T-En)` (disabled when disc image is already on SD card).
