@@ -81,7 +81,7 @@ The latest version of **openMenu Virtual Folder Bundle** is [1.1-ateam](https://
 
 ## Changelog
 
-- **Version 1.1-ateam (2026-XX-XX)**
+- **Version 1.1-ateam (2026-01-16)**
   - **openMenu**
     - New "Exit to BIOS" options (see [Issue 32](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/32)).
     - Added keyboard support for navigation and input (see [Issue 27](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/27), thanks [Xerxes3rd](https://github.com/Xerxes3rd)).
