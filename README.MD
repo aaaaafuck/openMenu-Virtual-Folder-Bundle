@@ -63,7 +63,7 @@ To accommodate the new openMenu, a modified version of [GD MENU Card Manager](ht
   - [Popup Menus (All Modes)](#popup-menus-all-modes)
 - [Keyboard Support](#keyboard-support)
 - [Theming](#theming)
-  - [Additional Themes](#additional-themes)
+  - [Installing Additional Themes](#installing-additional-themes)
   - [Theme Format](#theme-format)
     - [General](#general)
     - [Color Styling](#color-styling)
@@ -578,7 +578,7 @@ Thanks to [Xerxes3rd](https://github.com/DerekPascarella/openMenu-Virtual-Folder
 
 ## Theming
 
-### Additional Themes
+### Installing Additional Themes
 
 [In this folder](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/raw/refs/heads/main/themes), a collection of additional **openMenu Virtual Folder Bundle** themes are available that have been created by the development and testing team.
 
