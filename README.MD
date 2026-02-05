@@ -101,7 +101,7 @@ The latest version of **openMenu Virtual Folder Bundle** is [1.2-ateam](https://
 
 ## Changelog
 
-- **Version 1.2-ateam (2026-02-XX)**
+- **Version 1.2-ateam (2026-02-05)**
   - **openMenu**
     - New VMU save/load functionality with live detection of VMU devices upon loading the save manager, plus ability to upgrade old save files (see [Issue 60](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/60)).
     - New themes added, with old themes cleaned up or purged (see [Issue 44](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/44)).
