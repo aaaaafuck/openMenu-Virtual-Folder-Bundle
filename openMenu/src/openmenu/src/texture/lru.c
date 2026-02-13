@@ -69,7 +69,7 @@ add_to_cache(cache_instance* cache, const char* key, int value) {
 
     entry = calloc(1, sizeof(struct CacheEntry));
     if (!entry) {
-        printf("%s no free memory\n", __func__);
+        /* printf("%s no free memory\n", __func__); */
         return;
     }
     entry->key = strdup(key);

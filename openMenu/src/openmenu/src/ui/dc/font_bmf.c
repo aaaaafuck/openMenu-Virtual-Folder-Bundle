@@ -263,7 +263,7 @@ BMF_parse_kerning(file_t fd, size_t block_size, bm_font* font) {
 
     font->kerns = malloc(sizeof(bm_kern_pair) * num_pairs);
     if (!font->kerns) {
-        printf("%s no free memory\n", __func__);
+        /* printf("%s no free memory\n", __func__); */
         return 0;
     }
     font->num_kerns = num_pairs;
@@ -305,7 +305,7 @@ BMF_load(const char* file, bm_font* font) {
     fd = fs_open(file, O_RDONLY);
 
     if (fd == -1) {
-        printf("BMF:Error file %s not found!\n", file);
+        /* printf("BMF:Error file %s not found!\n", file); */
         return 1;
     }
 
@@ -313,7 +313,7 @@ BMF_load(const char* file, bm_font* font) {
     fs_read(fd, &file_header, sizeof(bm_header));
     if (file_header.version != 3) {
         fs_close(fd);
-        printf("BMF:Error font magic wrong %3s!\n", file_header.bmf);
+        /* printf("BMF:Error font magic wrong %3s!\n", file_header.bmf); */
         return 1;
     }
 
@@ -336,7 +336,7 @@ BMF_load(const char* file, bm_font* font) {
                 BMF_parse_kerning(fd, next_block.size, font);
                 parsing = false; /* should be end of file */
                 break;
-            default: printf("BMF:Error unknown block type %d\n", next_block.type);
+            default: /* printf("BMF:Error unknown block type %d\n", next_block.type); */ break;
         }
     }
 
@@ -441,8 +441,8 @@ font_bmf_begin_draw(void) {
             case 512:
             case 1024: break;
             default:
-                printf("%s error tex size %d(%ld) %d(%ld)\n", __func__, tmp.txr.width, font_texture.width,
-                       tmp.txr.height, font_texture.height);
+                /* printf("%s error tex size %d(%ld) %d(%ld)\n", __func__, tmp.txr.width, font_texture.width,
+                       tmp.txr.height, font_texture.height); */
                 return;
                 break;
         }

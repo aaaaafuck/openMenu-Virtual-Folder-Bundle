@@ -90,10 +90,10 @@ pvr_get_texture_size(const void* input, uint32_t* w, uint32_t* h, uint32_t* txrF
     *h = texH;
     *txrFormat = texFormat | texColor;
 
-    printf("PVR: header bytes [%02x %02x %02x %02x] -> w=%d h=%d size=%d\n",
+    /* printf("PVR: header bytes [%02x %02x %02x %02x] -> w=%d h=%d size=%d\n",
            texBuf[PVR_HDR_SIZE - 4], texBuf[PVR_HDR_SIZE - 3],
            texBuf[PVR_HDR_SIZE - 2], texBuf[PVR_HDR_SIZE - 1],
-           texW, texH, txr_size);
+           texW, texH, txr_size); */
 
     return txr_size;
 }
@@ -119,7 +119,7 @@ load_pvr_from_buffer(const void* input, uint32_t* w, uint32_t* h, uint32_t* txrF
     }
 
     if (!(rv = pvr_mem_malloc(txr_size))) {
-        printf("PVR: Couldn't allocate memory for texture!\n");
+        /* printf("PVR: Couldn't allocate memory for texture!\n"); */
         return NULL;
     }
     pvr_txr_load(texBuf + PVR_HDR_SIZE, rv, txr_size);
@@ -132,7 +132,7 @@ pvr_get_internal_buffer(void) {
     if (!_internal_buf) {
         _internal_buf = malloc(512 * 512 * 2);
         if (!_internal_buf) {
-            printf("%s no free memory\n", __func__);
+            /* printf("%s no free memory\n", __func__); */
             return NULL;
         }
     }
@@ -158,7 +158,7 @@ pvr_read_to_internal(const char* filename) {
 
     tex_fd = fs_open(filename_safe, O_RDONLY);
     if (tex_fd == -1) {
-        printf("PVR:Error opening %s!\n", filename_safe);
+        /* printf("PVR:Error opening %s!\n", filename_safe); */
         return;
     }
 

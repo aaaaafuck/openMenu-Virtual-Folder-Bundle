@@ -42,8 +42,20 @@
                 <StackPanel Grid.Column="0">
                     <!-- Supported Formats -->
                     <TextBlock FontWeight="Bold">Supported Formats</TextBlock>
-                    <TextBlock Margin="0,4,0,0">Image: GDI, CDI, CCD, MDS, CUE/BIN (Redump)</TextBlock>
-                    <TextBlock>Compressed: 7Z, RAR, ZIP</TextBlock>
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="SemiBold">Image</TextBlock>
+                        <TextBlock Grid.Row="0" Grid.Column="1">GDI, CDI, CCD, MDS, CUE/BIN</TextBlock>
+                        <TextBlock Grid.Row="1" Grid.Column="0" FontWeight="SemiBold">Compressed</TextBlock>
+                        <TextBlock Grid.Row="1" Grid.Column="1">7Z, CHD, RAR, ZIP</TextBlock>
+                    </Grid>
 
                     <Rectangle Fill="Gray" Height="1" Margin="0,12"/>
 
@@ -98,7 +110,7 @@
                     <Rectangle Fill="Gray" Height="1" Margin="0,12"/>
 
                     <!-- Renaming -->
-                    <TextBlock FontWeight="Bold">Renaming (single or bulk)</TextBlock>
+                    <TextBlock FontWeight="Bold">Single or Bulk Renaming</TextBlock>
                     <Grid Margin="0,4,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="80"/>
@@ -120,7 +132,7 @@
                     <Rectangle Fill="Gray" Height="1" Margin="0,12"/>
 
                     <!-- Assign Folder Path -->
-                    <TextBlock FontWeight="Bold">Assign Folder Path (single or bulk)</TextBlock>
+                    <TextBlock FontWeight="Bold">Assign Single or Bulk Folder Path (openMenu mode)</TextBlock>
                     <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">Context menu → Assign Folder Path to organize games into folders</TextBlock>
                 </StackPanel>
 
@@ -169,7 +181,7 @@
 
             <!-- Credits -->
             <TextBlock FontWeight="Bold">Credits</TextBlock>
-            <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">GDEMU - Deunan; GDmenu - neuroacid; openMenu - mrneo240; GdiBuilder - Paul Kratt; Aaru - Natalia Portillo; PuyoTools - Nick Woronekin; Redump2CDI - darc; gdidrop - feyris-tan; ImageSharp - SixLabors; ClosedXML - Jan Havlíček; SharpCompress - Adam Hathcock</TextBlock>
+            <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">GDEMU - Deunan; gdMenu - neuroacid; openMenu - mrneo240; GdiBuilder - Paul Kratt; Aaru - Natalia Portillo; PuyoTools - Nick Woronekin; Redump2CDI - darc; gdidrop - feyris-tan; libchdr - Romain Tisserand; ImageSharp - SixLabors; ClosedXML - Jan Havlíček; SharpCompress - Adam Hathcock</TextBlock>
         </StackPanel>
     </Grid>
 </Window>

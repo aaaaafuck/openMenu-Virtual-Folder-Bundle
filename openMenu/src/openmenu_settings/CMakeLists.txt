@@ -2,6 +2,7 @@ add_library(openmenu_settings
         STATIC
         src/openmenu_savefile.c
         src/openmenu_settings.c
+        src/sd_savefile.c
 )
 target_sources(openmenu_settings
         PUBLIC
@@ -10,6 +11,7 @@ target_sources(openmenu_settings
         include/openmenu_savefile.h
         include/openmenu_settings.h
         include/openmenu_vmu.h
+        include/sd_savefile.h
 )
 
 target_include_directories(openmenu_settings
@@ -20,4 +22,5 @@ target_include_directories(openmenu_settings
         src
 )
 
-target_link_libraries(openmenu_settings PRIVATE crayon_savefile)
+# Link against crayon_savefile and kosfat (for SD card FAT filesystem support)
+target_link_libraries(openmenu_settings PRIVATE crayon_savefile kosfat)

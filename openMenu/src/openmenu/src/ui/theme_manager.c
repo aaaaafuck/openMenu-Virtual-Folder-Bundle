@@ -133,11 +133,11 @@ read_theme_ini(void* user, const char* section, const char* name, const char* va
         } else if (strcasecmp(name, "MENU_BKG_BORDER_COLOR") == 0) {
             new_color->menu_bkg_border_color = str2argb(value);
         } else {
-            printf("Unknown theme value: %s\n", name);
+            /* printf("Unknown theme value: %s\n", name); */
         }
     } else {
         /* error */
-        printf("INI:Error unknown [%s] %s: %s\n", section, name, value);
+        /* printf("INI:Error unknown [%s] %s: %s\n", section, name, value); */
     }
     return 1;
 }
@@ -199,11 +199,11 @@ read_scroll_theme_ini(void* user, const char* section, const char* name, const c
         } else if (strcasecmp(name, "POS_GAMETXR_Y") == 0) {
             new_theme->pos_gametxr_y = atoi(value);
         } else {
-            printf("Unknown theme value: %s\n", name);
+            /* printf("Unknown theme value: %s\n", name); */
         }
     } else {
         /* error */
-        printf("INI:Error unknown [%s] %s: %s\n", section, name, value);
+        /* printf("INI:Error unknown [%s] %s: %s\n", section, name, value); */
     }
     return 1;
 }
@@ -264,15 +264,15 @@ int
 theme_read(const char* filename, void* theme, int type) {
     file_t ini = fs_open(filename, O_RDONLY);
     if (ini == -1) {
-        printf("INI:Error opening %s!\n", filename);
-        fflush(stdout);
+        /* printf("INI:Error opening %s!\n", filename); */
+        /* fflush(stdout); */
         return -1;
     }
 
     size_t ini_size = filelength(ini);
     char* ini_buffer = malloc(ini_size + 1);  /* +1 for null terminator */
     if (!ini_buffer) {
-        printf("%s no free memory\n", __func__);
+        /* printf("%s no free memory\n", __func__); */
         fs_close(ini);
         return -1;
     }
@@ -293,8 +293,8 @@ theme_read(const char* filename, void* theme, int type) {
 
     int parse_result = ini_parse_string(ini_buffer, parser, theme);
     if (parse_result < 0) {
-        printf("INI:Error Parsing %s!\n", filename);
-        fflush(stdout);
+        /* printf("INI:Error Parsing %s!\n", filename); */
+        /* fflush(stdout); */
         free(ini_buffer);
         return -1;
     }
@@ -323,7 +323,7 @@ load_themes(char* basePath) {
                 strcat(path, dp->d_name);
                 strcat(path, "/");
 
-                printf("theme #%d: %s @ %s\n", theme_num, dp->d_name, path);
+                /* printf("theme #%d: %s @ %s\n", theme_num, dp->d_name, path); */
 
                 /* Add the theme */
                 strcpy(custom_themes[num_custom_themes].bg_left, path + 4);
@@ -355,7 +355,7 @@ load_themes(char* basePath) {
                 strcat(path, dp->d_name);
                 strcat(path, "/");
 
-                printf("scroll theme #%d: %s @ %s\n", theme_num, dp->d_name, path);
+                /* printf("scroll theme #%d: %s @ %s\n", theme_num, dp->d_name, path); */
 
                 /* Add the theme */
                 strcpy(scroll_themes[num_scroll_themes].bg_left, path + 4);
@@ -381,7 +381,7 @@ load_themes(char* basePath) {
                 strcat(path, dp->d_name);
                 strcat(path, "/");
 
-                printf("folders theme #%d: %s @ %s\n", theme_num, dp->d_name, path);
+                /* printf("folders theme #%d: %s @ %s\n", theme_num, dp->d_name, path); */
 
                 /* Add the theme */
                 strcpy(folder_themes[num_folder_themes].bg_left, path + 4);

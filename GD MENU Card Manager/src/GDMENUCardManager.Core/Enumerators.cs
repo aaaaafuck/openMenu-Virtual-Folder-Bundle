@@ -11,7 +11,8 @@
     {
         Uncompressed,
         SevenZip,
-        RedumpCueBin
+        RedumpCueBin,
+        Chd
     }
 
     public enum SpecialDisc

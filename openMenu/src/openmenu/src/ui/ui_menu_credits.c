@@ -16,6 +16,7 @@
 #include <backend/gd_list.h>
 #include <backend/gdemu_sdk.h>
 #include <crayon_savefile/savefile.h>
+#include <openmenu_debug.h>
 #include <openmenu_savefile.h>
 #include <openmenu_settings.h>
 
@@ -26,10 +27,11 @@
 
 #include "ui/ui_menu_credits.h"
 
-/* External declaration for VM2/VMUPro/USB4Maple detection */
+/* External declaration for VM2/VMUPro/USB4Maple/Pico2Maple detection */
 #include <dc/maple.h>
 #include <crayon_savefile/peripheral.h>
 #include "vm2/vm2_api.h"
+extern maple_device_t* vm2_devices[];
 extern int vm2_device_count;
 extern void vm2_rescan(void);
 extern void vm2_send_id_to_all(const char* product, const char* name);
@@ -46,7 +48,7 @@ static const char* exit_option_text[] = {
 };
 
 static const char* exit_info_text =
-    "Region and VGA patching is not automatically applied when "
+    "Region and VGA patching are not automatically applied when "
     "launching games from the BIOS. Select \"Disc Image Options\" "
     "in GD MENU Card Manager to patch instead.";
 
@@ -69,7 +71,7 @@ static EXIT_OPTION exit_options[EXIT_OPT_MAX];
 
 /* Build exit options list based on context
  * - is_folder: true if a folder is selected (only Exit to BIOS + Close)
- * - has_vm2: true if VM2/VMUPro/USB4MAPLE is detected
+ * - has_vm2: true if VM2/VMUPro/USB4Maple/Pico2Maple is detected
  * - is_game: true if type != "other" (game, psx, etc.)
  * - Also checks if VMU Game ID transmission is enabled (not set to Off)
  */
@@ -180,7 +182,7 @@ typedef enum CB_OPTION {
 
 #pragma region Settings_Menu
 
-static const char* menu_choice_text[] = {"Style", "Theme", "Aspect", "Beep", "Exit to 3D BIOS", "Sort", "Filter", "Multi-Disc", "Multi-Disc Grouping", "Artwork", "Display Index Numbers", "Disc Details", "Artwork", "Item Details", "Clock", "Marquee Speed", "VMU Game ID", "Boot Mode"};
+static const char* menu_choice_text[] = {"Style", "Theme", "Aspect", "Beep", "Exit to 3D BIOS", "Sort", "Filter", "Multi-Disc", "Multi-Disc Grouping", "Artwork", "Display Index Numbers", "Disc Details", "Artwork", "Item Details", "Clock", "Marquee Speed", "VMU Time Sync", "VMU Game ID", "Boot Mode"};
 static const char* theme_choice_text[] = {"LineDesc", "Grid3", "Scroll", "Folders"};
 static const char* region_choice_text[] = {"NTSC-U", "NTSC-J", "PAL"};
 static const char* region_choice_text_scroll[] = {"GDMENU"};
@@ -203,6 +205,7 @@ static const char* folders_art_choice_text[] = {"Off", "On"};
 static const char* folders_item_details_choice_text[] = {"Off", "On"};
 static const char* marquee_speed_choice_text[] = {"Slow", "Medium", "Fast"};
 static const char* clock_choice_text[] = {"On (12-Hour)", "On (24-Hour)", "Off"};
+static const char* vmu_time_sync_choice_text[] = {"Off", "On"};
 static const char* vm2_send_all_choice_text[] = {"Send to All", "Send to First", "Off"};
 static const char* boot_mode_choice_text[] = {"Full Boot", "License Only", "Animation Only", "Fast Boot"};
 static const char* save_choice_text[] = {"Save/Load", "Apply"};
@@ -235,6 +238,7 @@ static int REGION_CHOICES = (sizeof(region_choice_text) / sizeof(region_choice_t
 #define FOLDERS_ITEM_DETAILS_CHOICES (sizeof(folders_item_details_choice_text) / sizeof(folders_item_details_choice_text)[0])
 #define MARQUEE_SPEED_CHOICES (sizeof(marquee_speed_choice_text) / sizeof(marquee_speed_choice_text)[0])
 #define CLOCK_CHOICES (sizeof(clock_choice_text) / sizeof(clock_choice_text)[0])
+#define VMU_TIME_SYNC_CHOICES (sizeof(vmu_time_sync_choice_text) / sizeof(vmu_time_sync_choice_text)[0])
 #define VM2_SEND_ALL_CHOICES (sizeof(vm2_send_all_choice_text) / sizeof(vm2_send_all_choice_text)[0])
 #define BOOT_MODE_CHOICES (sizeof(boot_mode_choice_text) / sizeof(boot_mode_choice_text)[0])
 
@@ -256,6 +260,7 @@ typedef enum MENU_CHOICE {
     CHOICE_FOLDERS_ITEM_DETAILS,
     CHOICE_CLOCK,
     CHOICE_MARQUEE_SPEED,
+    CHOICE_VMU_TIME_SYNC,
     CHOICE_VM2_SEND_ALL,
     CHOICE_BOOT_MODE,
     CHOICE_SAVE,
@@ -268,13 +273,13 @@ typedef enum MENU_CHOICE {
 static int choices[MENU_CHOICES + 1];
 static int choices_max[MENU_CHOICES + 1] = {
     THEME_CHOICES,     3, ASPECT_CHOICES, BEEP_CHOICES, BIOS_3D_CHOICES, SORT_CHOICES, FILTER_CHOICES,
-    MULTIDISC_CHOICES, MULTIDISC_GROUPING_CHOICES, SCROLL_ART_CHOICES, SCROLL_INDEX_CHOICES, DISC_DETAILS_CHOICES, FOLDERS_ART_CHOICES, FOLDERS_ITEM_DETAILS_CHOICES, CLOCK_CHOICES, MARQUEE_SPEED_CHOICES, VM2_SEND_ALL_CHOICES, BOOT_MODE_CHOICES, 2 /* Apply/Save */};
+    MULTIDISC_CHOICES, MULTIDISC_GROUPING_CHOICES, SCROLL_ART_CHOICES, SCROLL_INDEX_CHOICES, DISC_DETAILS_CHOICES, FOLDERS_ART_CHOICES, FOLDERS_ITEM_DETAILS_CHOICES, CLOCK_CHOICES, MARQUEE_SPEED_CHOICES, VMU_TIME_SYNC_CHOICES, VM2_SEND_ALL_CHOICES, BOOT_MODE_CHOICES, 2 /* Apply/Save */};
 static const char** menu_choice_array[MENU_CHOICES] = {theme_choice_text,       region_choice_text,   aspect_choice_text,
                                                        beep_choice_text,        bios_3d_choice_text,  sort_choice_text,
                                                        filter_choice_text,      multidisc_choice_text, multidisc_grouping_choice_text,
                                                        scroll_art_choice_text,  scroll_index_choice_text, disc_details_choice_text,
-                                                       folders_art_choice_text, folders_item_details_choice_text, clock_choice_text, marquee_speed_choice_text, vm2_send_all_choice_text,
-                                                       boot_mode_choice_text};
+                                                       folders_art_choice_text, folders_item_details_choice_text, clock_choice_text, marquee_speed_choice_text, vmu_time_sync_choice_text,
+                                                       vm2_send_all_choice_text, boot_mode_choice_text};
 static int current_choice = CHOICE_START;
 static int* input_timeout_ptr = NULL;
 
@@ -315,6 +320,11 @@ static uint32_t menu_title_color;
 
 /* Forward declaration for Save/Load window initialization */
 static void saveload_init_state(void);
+
+/* COMPACTION_TEST_START */
+/* Forward declaration for compaction test */
+static void compaction_test_setup_internal(void);
+/* COMPACTION_TEST_END */
 
 /* Build version string (compiled in from VERSION.TXT at build time) */
 #ifndef OPENMENU_BUILD_VERSION
@@ -373,6 +383,7 @@ menu_setup(enum draw_state* state, theme_color* _colors, int* timeout_ptr, uint3
     choices[CHOICE_FOLDERS_ITEM_DETAILS] = sf_folders_item_details[0];
     choices[CHOICE_MARQUEE_SPEED] = sf_marquee_speed[0];
     choices[CHOICE_CLOCK] = sf_clock[0];
+    choices[CHOICE_VMU_TIME_SYNC] = sf_vmu_time_sync[0];
     choices[CHOICE_VM2_SEND_ALL] = sf_vm2_send_all[0];
     choices[CHOICE_BOOT_MODE] = sf_boot_mode[0];
 
@@ -493,6 +504,23 @@ menu_accept(void) {
         sf_folders_item_details[0] = choices[CHOICE_FOLDERS_ITEM_DETAILS];
         sf_marquee_speed[0] = choices[CHOICE_MARQUEE_SPEED];
         sf_clock[0] = choices[CHOICE_CLOCK];
+        /* If VMU Time Sync was just enabled, sync the RTC now */
+        if (choices[CHOICE_VMU_TIME_SYNC] == VMU_TIME_SYNC_ON && sf_vmu_time_sync[0] == VMU_TIME_SYNC_OFF) {
+            sync_rtc_from_vmu();
+        }
+        /* COMPACTION_TEST_START - enable DEBUG_COMPACTION_TEST in openmenu_debug.h */
+#if DEBUG_COMPACTION_TEST
+        /* Hijack VMU Time Sync enable to trigger compaction test */
+        if (choices[CHOICE_VMU_TIME_SYNC] == VMU_TIME_SYNC_ON && sf_vmu_time_sync[0] == VMU_TIME_SYNC_OFF) {
+            sf_vmu_time_sync[0] = choices[CHOICE_VMU_TIME_SYNC];
+            compaction_test_setup_internal();
+            *state_ptr = DRAW_COMPACTION_TEST;
+            *input_timeout_ptr = 3;
+            return;
+        }
+#endif
+        /* COMPACTION_TEST_END */
+        sf_vmu_time_sync[0] = choices[CHOICE_VMU_TIME_SYNC];
         sf_vm2_send_all[0] = choices[CHOICE_VM2_SEND_ALL];
         sf_boot_mode[0] = choices[CHOICE_BOOT_MODE];
         if (choices[CHOICE_THEME] != UI_SCROLL && choices[CHOICE_THEME] != UI_FOLDERS && sf_region[0] > REGION_END) {
@@ -867,9 +895,14 @@ menu_exit_accept(void) {
 
         case EXIT_OPT_EXIT_ONLY:
             /* Exit to BIOS without mounting disc */
-            /* Send hardcoded "DCBIOS" ID to VM2 if present (honors send setting) */
+            /* Send hardcoded "DCBIOS" ID to actual VM2 devices only (not VMUPro/USB4Maple/Pico2Maple) */
             vm2_rescan();
-            vm2_send_id_to_all("DCBIOS", NULL);
+            for (int i = 0; i < vm2_device_count; i++) {
+                const char* type = get_vmu_type_name(vm2_devices[i]);
+                if (type && strcmp(type, "VM2") == 0) {
+                    vm2_set_id(vm2_devices[i], "DCBIOS", NULL);
+                }
+            }
             exit_to_bios_ex(0, 0);
             break;
 
@@ -1041,8 +1074,8 @@ draw_menu_tr(void) {
         const int line_height = 24;
         const int width = 320;
         /* Calculate visible options for height.
-         * Extra rows after options: Save/Apply/Credits, spacing, GDEMU version, Build version = 4 rows
-         * The +4 in the height formula accounts for these rows */
+         * Extra rows after options: Save/Apply/Credits, spacing, combined version = 3 rows
+         * The +3 in the height formula accounts for these rows */
         int visible_options = MENU_OPTIONS - 1;  /* Hide BEEP */
         if (sf_ui[0] == UI_SCROLL) {
             visible_options -= 4;  /* Hide Aspect, FOLDERS_ART, FOLDERS_ITEM_DETAILS, CLOCK, MULTIDISC_GROUPING (5 items, -1 for padding) */
@@ -1057,7 +1090,7 @@ draw_menu_tr(void) {
         if (vm2_device_count == 0) {
             visible_options -= 1;
         }
-        const int height = (visible_options + 4) * line_height + (line_height * 11 / 12);
+        const int height = (visible_options + 3) * line_height + 4;
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2);
         const int x_item = x + 8;  /* 8px left margin */
@@ -1074,7 +1107,7 @@ draw_menu_tr(void) {
 
         font_bmp_draw_main(width - (8 * 8 / 2), cur_y, "Settings");
 
-        cur_y += line_height / 2;
+        cur_y += 2;
         for (int i = 0; i < MENU_CHOICES; i++) {
             /* Skip SCROLL_ART option in non-Scroll modes */
             if (i == CHOICE_SCROLL_ART && sf_ui[0] != UI_SCROLL) {
@@ -1162,28 +1195,21 @@ draw_menu_tr(void) {
         /* Add empty line for spacing */
         cur_y += line_height;
 
-        /* Draw GDEMU firmware version (non-selectable) */
+        /* Draw GDEMU + openMenu version on one line (non-selectable) */
         uint8_t version_buffer[8] = {0};
         uint32_t version_size = 8;
-        char version_str[40];
+        char combined_str[80];
         if (gdemu_get_version(version_buffer, &version_size) == 0) {
-            snprintf(version_str, sizeof(version_str), "GDEMU Firmware: %d.%02x.%d",
-                     version_buffer[7], version_buffer[6], version_buffer[5]);
+            snprintf(combined_str, sizeof(combined_str), "GDEMU: %d.%02x.%d - openMenu: %s",
+                     version_buffer[7], version_buffer[6], version_buffer[5], OPENMENU_BUILD_VERSION);
         } else {
-            snprintf(version_str, sizeof(version_str), "GDEMU Firmware: N/A");
+            snprintf(combined_str, sizeof(combined_str), "GDEMU: N/A - openMenu: %s", OPENMENU_BUILD_VERSION);
         }
         font_bmp_set_color(text_color);
         cur_y += line_height;
         /* Center based on actual string length (8 pixels per character) */
-        int str_pixel_width = strlen(version_str) * 8;
-        font_bmp_draw_main(640 / 2 - (str_pixel_width / 2), cur_y, version_str);
-
-        /* Draw openMenu build version (non-selectable) */
-        char build_str[80];
-        snprintf(build_str, sizeof(build_str), "openMenu Build: %s", OPENMENU_BUILD_VERSION);
-        cur_y += line_height;
-        str_pixel_width = strlen(build_str) * 8;
-        font_bmp_draw_main(640 / 2 - (str_pixel_width / 2), cur_y, build_str);
+        int str_pixel_width = strlen(combined_str) * 8;
+        font_bmp_draw_main(640 / 2 - (str_pixel_width / 2), cur_y, combined_str);
 
     } else {
         /* Menu size and placement (many options not shown in LineDesc/Grid3) */
@@ -1195,7 +1221,7 @@ draw_menu_tr(void) {
         if (vm2_device_count == 0) {
             visible_options -= 1;
         }
-        const int height = (visible_options + 3) * line_height - line_height / 4 + line_height + line_height / 2; /* Add space for version strings and extra spacing before buttons */
+        const int height = (visible_options + 3) * line_height - line_height / 4 + line_height / 2; /* Add space for combined version string and extra spacing before buttons */
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2); /* Vertically centered */
         const int x_item = x + 4;
@@ -1291,25 +1317,19 @@ draw_menu_tr(void) {
         /* Add empty line for spacing */
         cur_y += line_height;
 
-        /* Draw GDEMU firmware version (non-selectable, smaller font) */
+        /* Draw GDEMU + openMenu version on one line (non-selectable, smaller font) */
         uint8_t version_buffer[8] = {0};
         uint32_t version_size = 8;
-        char version_str[40];
+        char combined_str[80];
         if (gdemu_get_version(version_buffer, &version_size) == 0) {
-            snprintf(version_str, sizeof(version_str), "GDEMU  Firmware:  %d.%02x.%d",
-                     version_buffer[7], version_buffer[6], version_buffer[5]);
+            snprintf(combined_str, sizeof(combined_str), "GDEMU:  %d.%02x.%d  -  openMenu:  %s",
+                     version_buffer[7], version_buffer[6], version_buffer[5], OPENMENU_BUILD_VERSION);
         } else {
-            snprintf(version_str, sizeof(version_str), "GDEMU  Firmware:  N/A");
+            snprintf(combined_str, sizeof(combined_str), "GDEMU:  N/A  -  openMenu:  %s", OPENMENU_BUILD_VERSION);
         }
         cur_y += line_height / 2;
         font_bmf_set_height(20.0f);
-        font_bmf_draw_centered(640 / 2, cur_y, text_color, version_str);
-
-        /* Draw openMenu build version (non-selectable, smaller font) */
-        char build_str[80];
-        snprintf(build_str, sizeof(build_str), "openMenu  Build :  %s", OPENMENU_BUILD_VERSION);
-        cur_y += line_height * 3 / 4;
-        font_bmf_draw_centered(640 / 2, cur_y, text_color, build_str);
+        font_bmf_draw_centered(640 / 2, cur_y, text_color, combined_str);
 
         font_bmf_set_height_default();
     }
@@ -1326,7 +1346,7 @@ draw_credits_tr(void) {
         /* Menu size and placement */
         const int line_height = 24;
         const int width = 320;
-        const int height = (num_credits + 1) * line_height + (line_height * 13 / 12);
+        const int height = (num_credits + 1) * line_height + 4;
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2);
         const int x_item = x + 8;  /* 8px left margin */
@@ -1344,7 +1364,7 @@ draw_credits_tr(void) {
         font_bmp_draw_main(width - (8 * 8 / 2), cur_y, "Credits");
         font_bmp_set_color(sf_ui[0] == UI_FOLDERS ? text_color : highlight_color);
 
-        cur_y += line_height / 2;
+        cur_y += 2;
         for (int i = 0; i < num_credits; i++) {
             cur_y += line_height;
             string_outer_concat(line_buf, credits[i].contributor, credits[i].role, 38);
@@ -1513,7 +1533,7 @@ draw_exit_tr(void) {
     if (sf_ui[0] == UI_SCROLL || sf_ui[0] == UI_FOLDERS) {
         /* Menu size and placement - width calculated based on actual options */
         const int line_height = 24;
-        const int title_gap = line_height / 2;
+        const int title_gap = 2;
         const int padding = 16;  /* 8px margin on each side */
         const int title_width = 12 * 8;  /* "Exit to BIOS" = 12 chars */
 
@@ -1529,7 +1549,7 @@ draw_exit_tr(void) {
         /* Width is the larger of title or max option, plus padding */
         const int content_width = max_option_len * 8;
         const int width = (content_width > title_width ? content_width : title_width) + padding;
-        int height = (exit_menu_num_options + 1) * line_height + (line_height / 2) + title_gap;
+        int height = (exit_menu_num_options + 1) * line_height + 4;
         const int is_game_type = (cur_game_item && strcmp(cur_game_item->type, "game") == 0);
         int num_info_lines = 0;
         if (is_game_type) {
@@ -1587,7 +1607,7 @@ draw_exit_tr(void) {
         if (is_game_type) {
             int info_chars_per_line = (content_width > title_width ? content_width : title_width) / 6;
             int num_info_lines = count_wrap_lines(exit_info_text, info_chars_per_line);
-            height += line_height + num_info_lines * 20;
+            height += line_height + line_height / 2 + num_info_lines * 20;
         }
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2);
@@ -1628,7 +1648,7 @@ draw_codebreaker_tr(void) {
     if (sf_ui[0] == UI_SCROLL || sf_ui[0] == UI_FOLDERS) {
         /* Menu size and placement - width calculated based on actual options */
         const int line_height = 24;
-        const int title_gap = line_height / 2;
+        const int title_gap = 2;
         const int padding = 16;  /* 8px margin on each side */
         const int title_width = 10 * 8;  /* "Use Cheats" = 10 chars */
 
@@ -1644,7 +1664,7 @@ draw_codebreaker_tr(void) {
         /* Width is the larger of title or max option, plus padding */
         const int content_width = max_option_len * 8;
         const int width = (content_width > title_width ? content_width : title_width) + padding;
-        const int height = (CB_MENU_NUM_OPTIONS + 1) * line_height + (line_height / 2) + title_gap;
+        const int height = (CB_MENU_NUM_OPTIONS + 1) * line_height + 4;
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2);
         const int x_item = x + (padding / 2);
@@ -1769,10 +1789,10 @@ draw_psx_launcher_tr(void) {
     if (sf_ui[0] == UI_SCROLL || sf_ui[0] == UI_FOLDERS) {
         /* Menu size and placement - width based on title "PlayStation Launcher" (20 chars) */
         const int line_height = 24;
-        const int title_gap = line_height / 2;
+        const int title_gap = 2;
         const int padding = 16;  /* 8px margin on each side */
         const int width = 20 * 8 + padding;  /* 176 */
-        const int height = 4 * line_height + (line_height / 2) + title_gap;
+        const int height = 4 * line_height + 4;
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2);
         const int x_item = x + (padding / 2);
@@ -1853,7 +1873,7 @@ typedef struct vmu_slot_info {
     int8_t crayon_status;       /* Raw CRAYON_SF_STATUS_* value */
     SAVE_STATUS save_status;    /* Friendly status enum */
     int has_device;             /* 1 if device present */
-    char type_name[12];         /* "VMU", "VM2", "VMUPro", "USB4MAPLE", "None" */
+    char type_name[12];         /* "VMU", "VM2", "VMUPro", "USB4MAPLE", "Pico2Maple", "None" */
     int is_startup_source;      /* 1 if this is where settings were loaded at boot */
 } vmu_slot_info;
 
@@ -1863,17 +1883,22 @@ static int saveload_cursor = 0;                 /* Current cursor position in fu
 static int saveload_selected_device = -1;       /* Index of selected device for actions (-1 = none) */
 static SAVELOAD_STATE saveload_substate = SAVELOAD_BROWSE;
 static const char* saveload_msg_line1 = NULL;
-static const char* saveload_msg_line2 = NULL;
 static int saveload_pending_action = 0;         /* 0 = save, 1 = load (for confirm dialog) */
 static int saveload_confirm_choice = 0;         /* 0 = Yes, 1 = No */
 static int saveload_pending_upgrade = 0;        /* 1 if load will trigger upgrade */
 static int saveload_original_ui_mode = -1;      /* UI mode when window opened (for consistent rendering) */
 
+/* Serial SD card state */
+static bool saveload_sd_available = false;
+static SD_STATUS saveload_sd_status = SD_STATUS_NOT_PRESENT;
+static uint32_t saveload_sd_version = 0;
+static bool saveload_sd_is_startup_source = false;
+
 #define SAVELOAD_ACTION_SAVE 0
 #define SAVELOAD_ACTION_LOAD 1
 #define SAVELOAD_ACTION_CLOSE 2
 
-/* Count number of selectable items (devices with VMU + 3 action buttons) */
+/* Count number of selectable items (devices with VMU + SD + 3 action buttons) */
 static int saveload_get_selectable_count(void) {
     int count = 0;
     for (int i = 0; i < 8; i++) {
@@ -1881,10 +1906,15 @@ static int saveload_get_selectable_count(void) {
             count++;
         }
     }
+    /* Add SD if available */
+    if (saveload_sd_available) {
+        count++;
+    }
     return count + 3;  /* +3 for Save/Load/Close buttons */
 }
 
-/* Get the device index for a cursor position, or -1 if cursor is on action buttons */
+/* Get the device index for a cursor position, or -1 if cursor is on action buttons
+ * Returns 0-7 for VMU slots, 8 for SD, -1 for action buttons */
 static int saveload_cursor_to_device_index(int cursor) {
     int device_count = 0;
     for (int i = 0; i < 8; i++) {
@@ -1894,6 +1924,10 @@ static int saveload_cursor_to_device_index(int cursor) {
             }
             device_count++;
         }
+    }
+    /* Check if cursor is on SD */
+    if (saveload_sd_available && device_count == cursor) {
+        return 8;  /* Special index for SD */
     }
     return -1;  /* Cursor is on action buttons */
 }
@@ -1905,6 +1939,10 @@ static int saveload_cursor_to_action(int cursor) {
         if (saveload_slots[i].has_device) {
             device_count++;
         }
+    }
+    /* Account for SD slot if available */
+    if (saveload_sd_available) {
+        device_count++;
     }
     if (cursor >= device_count) {
         return cursor - device_count;
@@ -1975,10 +2013,21 @@ static void saveload_scan_devices(void) {
         }
     }
 
+    /* SD card scanning */
+    savefile_refresh_sd_status();
+    saveload_sd_available = savefile_sd_available();
+    saveload_sd_status = savefile_get_sd_status();
+    saveload_sd_version = savefile_get_sd_version();
+    saveload_sd_is_startup_source = savefile_was_loaded_from_sd();
+
     /* Adjust selected device if it's no longer valid */
     if (saveload_selected_device >= 0) {
         int idx = saveload_cursor_to_device_index(saveload_selected_device);
-        if (idx < 0 || !saveload_slots[idx].has_device) {
+        if (idx < 0) {
+            saveload_selected_device = -1;
+        } else if (idx < 8 && !saveload_slots[idx].has_device) {
+            saveload_selected_device = -1;
+        } else if (idx == 8 && !saveload_sd_available) {
             saveload_selected_device = -1;
         }
     }
@@ -1994,7 +2043,6 @@ static void saveload_init_state(void) {
     saveload_cursor = 0;
     saveload_selected_device = -1;
     saveload_msg_line1 = NULL;
-    saveload_msg_line2 = NULL;
     saveload_confirm_choice = 0;
     saveload_pending_action = 0;
     saveload_pending_upgrade = 0;
@@ -2051,35 +2099,44 @@ static void saveload_do_save(void) {
     int dev_idx = saveload_cursor_to_device_index(saveload_selected_device);
     if (dev_idx < 0) return;
 
-    vmu_slot_info* slot = &saveload_slots[dev_idx];
-
     saveload_substate = SAVELOAD_BUSY;
     saveload_msg_line1 = "Saving...";
-    saveload_msg_line2 = NULL;
 
     /* Apply current menu choices to settings */
     saveload_apply_choices_to_settings();
 
-    /* Perform save */
-    int8_t result = savefile_save_to_device(slot->device_id);
+    int8_t result;
+
+    if (dev_idx == 8) {
+        /* Save to SD */
+        result = savefile_save_to_sd();
+        if (result != 0) {
+            /* Determine specific error */
+            if (!savefile_sd_available()) {
+                saveload_msg_line1 = "Error: SD card not detected.";
+            } else {
+                saveload_msg_line1 = "Error: Failed to write to SD.";
+            }
+        }
+    } else {
+        /* Save to VMU */
+        vmu_slot_info* slot = &saveload_slots[dev_idx];
+        result = savefile_save_to_device(slot->device_id);
+        if (result != 0) {
+            /* Check if it was a space issue */
+            uint32_t needed = savefile_get_save_size_blocks();
+            uint32_t available = savefile_get_device_free_blocks(slot->device_id);
+            if (needed > available) {
+                saveload_msg_line1 = "Error: Not enough space on VMU.";
+            } else {
+                saveload_msg_line1 = "Error: Failed to save settings.";
+            }
+        }
+    }
 
     saveload_substate = SAVELOAD_RESULT;
     if (result == 0) {
         saveload_msg_line1 = "Settings saved successfully.";
-        saveload_msg_line2 = NULL;
-    } else {
-        /* Check if it was a space issue */
-        uint32_t needed = savefile_get_save_size_blocks();
-        uint32_t available = savefile_get_device_free_blocks(slot->device_id);
-        if (needed > available) {
-            static char space_msg[48];
-            snprintf(space_msg, sizeof(space_msg), "Need %lu blocks, only %lu available.", (unsigned long)needed, (unsigned long)available);
-            saveload_msg_line1 = "Error: Not enough space on VMU.";
-            saveload_msg_line2 = space_msg;
-        } else {
-            saveload_msg_line1 = "Error: Failed to save settings.";
-            saveload_msg_line2 = NULL;
-        }
     }
 
     /* Refresh device info */
@@ -2092,41 +2149,70 @@ static void saveload_do_load(void) {
     int dev_idx = saveload_cursor_to_device_index(saveload_selected_device);
     if (dev_idx < 0) return;
 
-    vmu_slot_info* slot = &saveload_slots[dev_idx];
-
     saveload_substate = SAVELOAD_BUSY;
     saveload_msg_line1 = "Loading...";
-    saveload_msg_line2 = NULL;
 
-    int was_old = (slot->save_status == SAVE_OLD);
+    int8_t result;
 
-    /* Perform load */
-    int8_t result = savefile_load_from_device(slot->device_id);
+    if (dev_idx == 8) {
+        /* Load from SD */
+        int was_old = (saveload_sd_status == SD_STATUS_OLD);
+        result = savefile_load_from_sd();
 
-    saveload_substate = SAVELOAD_RESULT;
-    if (result == 0) {
-        /* Success */
-        if (was_old) {
-            /* Auto-upgrade: save back to VMU */
-            savefile_save_to_device(slot->device_id);
-            saveload_msg_line1 = "Settings loaded and upgraded.";
+        saveload_substate = SAVELOAD_RESULT;
+        if (result == 0) {
+            if (was_old) {
+                /* Auto-upgrade: save back to SD */
+                savefile_save_to_sd();
+                saveload_msg_line1 = "Settings loaded and upgraded.";
+            } else {
+                saveload_msg_line1 = "Settings loaded successfully.";
+            }
         } else {
-            saveload_msg_line1 = "Settings loaded successfully.";
+            SD_STATUS status = savefile_get_sd_status();
+            switch (status) {
+                case SD_STATUS_NOT_PRESENT:
+                    saveload_msg_line1 = "Error: SD card not detected.";
+                    break;
+                case SD_STATUS_INVALID:
+                    saveload_msg_line1 = "Error: SD config file invalid.";
+                    break;
+                case SD_STATUS_FUTURE:
+                    saveload_msg_line1 = "Error: Save from newer version.";
+                    break;
+                default:
+                    saveload_msg_line1 = "Error: Failed to read from SD.";
+                    break;
+            }
         }
-        saveload_msg_line2 = NULL;
-
-        /* Show success icon on the target VMU */
-        savefile_show_success_icon(slot->device_id);
     } else {
-        if (slot->save_status == SAVE_INVALID) {
-            saveload_msg_line1 = "Error: Save file is corrupt.";
-            saveload_msg_line2 = "Save new settings to replace it.";
-        } else if (slot->save_status == SAVE_FUTURE) {
-            saveload_msg_line1 = "Error: Save from newer version.";
-            saveload_msg_line2 = "Please update openMenu.";
+        /* Load from VMU */
+        vmu_slot_info* slot = &saveload_slots[dev_idx];
+        int was_old = (slot->save_status == SAVE_OLD);
+
+        result = savefile_load_from_device(slot->device_id);
+
+        saveload_substate = SAVELOAD_RESULT;
+        if (result == 0) {
+            /* Success */
+            if (was_old) {
+                /* Auto-upgrade: save back to VMU */
+                savefile_save_to_device(slot->device_id);
+                saveload_msg_line1 = "Settings loaded and upgraded.";
+            } else {
+                saveload_msg_line1 = "Settings loaded successfully.";
+            }
+
+            /* Show success icon on the target VMU */
+            savefile_show_success_icon(slot->device_id);
         } else {
-            saveload_msg_line1 = "Error: Failed to load settings.";
-            saveload_msg_line2 = NULL;
+            if (slot->save_status == SAVE_INVALID) {
+                saveload_msg_line1 = "Error: Save file is corrupt.";
+            } else if (slot->save_status == SAVE_FUTURE) {
+                saveload_msg_line1 = "Error: Save from newer version.";
+            } else {
+                saveload_msg_line1 = "Error: Failed to load settings.";
+            }
         }
     }
 
@@ -2171,7 +2257,6 @@ saveload_setup(enum draw_state* state, theme_color* _colors, int* timeout_ptr, u
     saveload_cursor = 0;
     saveload_selected_device = -1;
     saveload_msg_line1 = NULL;
-    saveload_msg_line2 = NULL;
     saveload_confirm_choice = 0;
     saveload_pending_action = 0;
     saveload_pending_upgrade = 0;
@@ -2199,19 +2284,16 @@ handle_input_saveload(enum control input) {
         case SAVELOAD_RESULT:
             /* Only A button to continue */
             if (input == A) {
-                /* Check if this was a successful load - if so, close and reload UI */
+                /* Check if this was a successful load or save - if so, close and reload UI */
                 if (saveload_msg_line1 != NULL &&
-                    (strstr(saveload_msg_line1, "loaded") != NULL)) {
+                    (strstr(saveload_msg_line1, "loaded") != NULL ||
+                     strstr(saveload_msg_line1, "saved") != NULL)) {
                     saveload_close_all(1);  /* Close with UI reload */
-                } else if (saveload_msg_line1 != NULL &&
-                           strstr(saveload_msg_line1, "saved") != NULL) {
-                    saveload_close_all(0);  /* Close without reload */
                 } else {
                     /* Error - return to browse */
                     saveload_substate = SAVELOAD_BROWSE;
                     saveload_msg_line1 = NULL;
-                    saveload_msg_line2 = NULL;
-                }
+                                }
                 *input_timeout_ptr = INPUT_TIMEOUT;
             }
             return;
@@ -2270,7 +2352,9 @@ handle_input_saveload(enum control input) {
                     if (new_cursor < 0) new_cursor = 0;
                 }
                 saveload_cursor = new_cursor;
-                /* Do NOT auto-select device - user must press A to select */
+            } else {
+                /* Wrap to bottom (Close button) */
+                saveload_cursor = close_idx;
             }
             *input_timeout_ptr = INPUT_TIMEOUT;
             break;
@@ -2284,7 +2368,9 @@ handle_input_saveload(enum control input) {
                     new_cursor = close_idx;  /* Jump to Close */
                 }
                 saveload_cursor = new_cursor;
-                /* Do NOT auto-select device - user must press A to select */
+            } else {
+                /* Wrap to top (first device) */
+                saveload_cursor = 0;
             }
             *input_timeout_ptr = INPUT_TIMEOUT;
             break;
@@ -2302,7 +2388,20 @@ handle_input_saveload(enum control input) {
                     break;
                 }
                 int dev_idx = saveload_cursor_to_device_index(saveload_selected_device);
-                if (dev_idx >= 0) {
+                if (dev_idx == 8) {
+                    /* SD card save */
+                    if (saveload_sd_status == SD_STATUS_READY || saveload_sd_status == SD_STATUS_OLD ||
+                        saveload_sd_status == SD_STATUS_INVALID) {
+                        /* Need confirmation to overwrite */
+                        saveload_substate = SAVELOAD_CONFIRM;
+                        saveload_pending_action = SAVELOAD_ACTION_SAVE;
+                        saveload_confirm_choice = 0;
+                        saveload_pending_upgrade = 0;
+                    } else {
+                        /* No existing save - proceed directly */
+                        saveload_do_save();
+                    }
+                } else if (dev_idx >= 0) {
                     vmu_slot_info* slot = &saveload_slots[dev_idx];
                     if (slot->save_status == SAVE_CURRENT || slot->save_status == SAVE_OLD ||
                         slot->save_status == SAVE_INVALID) {
@@ -2323,21 +2422,39 @@ handle_input_saveload(enum control input) {
                     break;
                 }
                 int dev_idx = saveload_cursor_to_device_index(saveload_selected_device);
-                if (dev_idx >= 0) {
+                if (dev_idx == 8) {
+                    /* SD card load */
+                    if (saveload_sd_status == SD_STATUS_NO_FILE) {
+                        saveload_substate = SAVELOAD_RESULT;
+                        saveload_msg_line1 = "Error: No save file on SD.";
+                    } else if (saveload_sd_status == SD_STATUS_FUTURE) {
+                        saveload_substate = SAVELOAD_RESULT;
+                        saveload_msg_line1 = "Error: Save from newer version.";
+                    } else if (saveload_sd_status == SD_STATUS_INVALID) {
+                        saveload_substate = SAVELOAD_RESULT;
+                        saveload_msg_line1 = "Error: SD config file invalid.";
+                    } else if (saveload_sd_status == SD_STATUS_OLD) {
+                        /* Old save - need confirmation for upgrade */
+                        saveload_substate = SAVELOAD_CONFIRM;
+                        saveload_pending_action = SAVELOAD_ACTION_LOAD;
+                        saveload_confirm_choice = 0;
+                        saveload_pending_upgrade = 1;
+                    } else {
+                        /* Current save - load directly */
+                        saveload_do_load();
+                    }
+                } else if (dev_idx >= 0) {
                     vmu_slot_info* slot = &saveload_slots[dev_idx];
                     if (slot->save_status == SAVE_NONE || slot->save_status == SAVE_NO_SPACE) {
                         /* No save to load */
                         saveload_substate = SAVELOAD_RESULT;
                         saveload_msg_line1 = "Error: No save file on this VMU.";
-                        saveload_msg_line2 = NULL;
                     } else if (slot->save_status == SAVE_FUTURE) {
                         saveload_substate = SAVELOAD_RESULT;
                         saveload_msg_line1 = "Error: Save from newer version.";
-                        saveload_msg_line2 = "Please update openMenu.";
                     } else if (slot->save_status == SAVE_INVALID) {
                         saveload_substate = SAVELOAD_RESULT;
                         saveload_msg_line1 = "Error: Save file is corrupt.";
-                        saveload_msg_line2 = "Save new settings to replace it.";
                     } else if (slot->save_status == SAVE_OLD) {
                         /* Old save - need confirmation for upgrade */
                         saveload_substate = SAVELOAD_CONFIRM;
@@ -2388,20 +2505,16 @@ draw_saveload_tr(void) {
         const int line_height = 24;
         const int padding = 16;
 
-        /* Calculate height based on content - matching Credits window formula */
-        /* 4 ports * (header + 2 sockets) = 12 lines + 4 action area lines = 16 content lines */
-        int content_lines = 0;
-        for (int p = 0; p < 4; p++) {
-            content_lines++;  /* Port header */
-            content_lines += 2;  /* Two sockets */
-        }
+        /* Calculate height based on content:
+         * 4 ports × 2 lines each = 8 lines
+         * 1 Serial line
+         * 4 action area lines
+         * = 13 content lines + title */
+        int content_lines = 8 + 1 + 4;
 
-        /* Action area: all states use 4 lines for consistent window height */
-        content_lines += 4;
-
-        const int width = 304;
+        const int width = 360;
         /* Match Credits formula: (content + 1) * line_height + extra padding */
-        const int height = (content_lines + 1) * line_height + (line_height * 13 / 12);
+        const int height = (content_lines + 1) * line_height + 4;
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2);
         const int x_item = x + (padding / 2);
@@ -2416,7 +2529,7 @@ draw_saveload_tr(void) {
         const char* title = "Save and Load Settings";
         font_bmp_draw_main(x + width / 2 - ((int)strlen(title) * 8 / 2), cur_y, title);
 
-        cur_y += line_height / 2;
+        cur_y += 2;
 
         /* Track cursor position for highlighting */
         int cursor_idx = 0;
@@ -2429,21 +2542,14 @@ draw_saveload_tr(void) {
             }
         }
 
-        /* Draw ports and sockets */
+        /* Draw ports and sockets - compact layout: Port X - Socket 1 on same line */
         for (int p = 0; p < 4; p++) {
-            cur_y += line_height;
-            font_bmp_set_color(text_color);
-            char port_label[16];
-            snprintf(port_label, sizeof(port_label), "Port %c", 'A' + p);
-            font_bmp_draw_main(x_item, cur_y, port_label);
-
-            /* Socket 1 */
+            /* Socket 1 row: "Port X - Socket 1: TYPE (status)" */
             cur_y += line_height;
             int slot_idx = p * 2;
             vmu_slot_info* slot = &saveload_slots[slot_idx];
 
             if (slot->has_device) {
-                /* Determine if this is highlighted or selected */
                 int is_cursor = (saveload_substate == SAVELOAD_BROWSE && cursor_idx == saveload_cursor);
                 int is_selected = (!saveload_cursor_on_device() && cursor_idx == saveload_selected_device);
 
@@ -2453,7 +2559,6 @@ draw_saveload_tr(void) {
                     font_bmp_set_color(text_color);
                 }
 
-                /* Build status string */
                 char status_str[20];
                 if (slot->is_startup_source && slot->save_status == SAVE_CURRENT) {
                     strcpy(status_str, "(loaded)");
@@ -2473,20 +2578,19 @@ draw_saveload_tr(void) {
                     }
                 }
 
-                char line[48];
-                if (is_selected) {
-                    snprintf(line, sizeof(line), "> Socket 1: %s %s", slot->type_name, status_str);
-                } else {
-                    snprintf(line, sizeof(line), "  Socket 1: %s %s", slot->type_name, status_str);
-                }
+                char line[56];
+                snprintf(line, sizeof(line), "Port %c - Socket 1: %s %s%s",
+                         'A' + p, slot->type_name, status_str, is_selected ? " <" : "");
                 font_bmp_draw_main(x_item, cur_y, line);
                 cursor_idx++;
             } else {
                 font_bmp_set_color(text_color);
-                font_bmp_draw_main(x_item, cur_y, "  Socket 1: None");
+                char line[32];
+                snprintf(line, sizeof(line), "Port %c - Socket 1: None", 'A' + p);
+                font_bmp_draw_main(x_item, cur_y, line);
             }
 
-            /* Socket 2 */
+            /* Socket 2 row: "         Socket 2: TYPE (status)" - aligned under Socket 1 */
             cur_y += line_height;
             slot_idx = p * 2 + 1;
             slot = &saveload_slots[slot_idx];
@@ -2520,18 +2624,58 @@ draw_saveload_tr(void) {
                     }
                 }
 
-                char line[48];
-                if (is_selected) {
-                    snprintf(line, sizeof(line), "> Socket 2: %s %s", slot->type_name, status_str);
-                } else {
-                    snprintf(line, sizeof(line), "  Socket 2: %s %s", slot->type_name, status_str);
-                }
+                char line[56];
+                /* 9 spaces to align "Socket 2" under "Socket 1" */
+                snprintf(line, sizeof(line), "         Socket 2: %s %s%s",
+                         slot->type_name, status_str, is_selected ? " <" : "");
                 font_bmp_draw_main(x_item, cur_y, line);
                 cursor_idx++;
             } else {
                 font_bmp_set_color(text_color);
-                font_bmp_draw_main(x_item, cur_y, "  Socket 2: None");
+                font_bmp_draw_main(x_item, cur_y, "         Socket 2: None");
             }
+        }
+
+        /* Serial row - SD card, separate from port entries */
+        cur_y += line_height;
+        if (saveload_sd_available) {
+            int is_cursor = (saveload_substate == SAVELOAD_BROWSE && cursor_idx == saveload_cursor);
+            int is_selected = (!saveload_cursor_on_device() && saveload_selected_device == cursor_idx);
+
+            if (is_cursor) {
+                font_bmp_set_color(highlight_color);
+            } else {
+                font_bmp_set_color(text_color);
+            }
+
+            char status_str[20];
+            if (saveload_sd_is_startup_source &&
+                (saveload_sd_status == SD_STATUS_READY || saveload_sd_status == SD_STATUS_OLD)) {
+                strcpy(status_str, "(loaded)");
+            } else {
+                switch (saveload_sd_status) {
+                    case SD_STATUS_NO_FILE: strcpy(status_str, "(no save)"); break;
+                    case SD_STATUS_READY: strcpy(status_str, "(saved)"); break;
+                    case SD_STATUS_OLD: {
+                        snprintf(status_str, sizeof(status_str), "(old v%lu)",
+                                 (unsigned long)saveload_sd_version);
+                        break;
+                    }
+                    case SD_STATUS_INVALID: strcpy(status_str, "(invalid)"); break;
+                    case SD_STATUS_NO_SPACE: strcpy(status_str, "(full)"); break;
+                    case SD_STATUS_FUTURE: strcpy(status_str, "(future)"); break;
+                    default: strcpy(status_str, ""); break;
+                }
+            }
+
+            char line[48];
+            snprintf(line, sizeof(line), "Serial - SD card %s%s", status_str, is_selected ? " <" : "");
+            font_bmp_draw_main(x_item, cur_y, line);
+            cursor_idx++;
+            device_count++;
+        } else {
+            font_bmp_set_color(text_color);
+            font_bmp_draw_main(x_item, cur_y, "Serial - SD card");
         }
 
         /* Spacing before action area */
@@ -2547,24 +2691,13 @@ draw_saveload_tr(void) {
                 font_bmp_draw_main(x_item, cur_y, saveload_msg_line1);
             }
 
-            if (saveload_msg_line2) {
-                /* With context: msg1 / msg2 / empty / Press A */
-                cur_y += line_height;
-                font_bmp_draw_main(x_item, cur_y, saveload_msg_line2);
-                cur_y += line_height;  /* Empty separator */
-                cur_y += line_height;
-                if (saveload_substate == SAVELOAD_RESULT) {
-                    font_bmp_draw_main(x_item, cur_y, "Press A to continue.");
-                }
-            } else {
-                /* No context: msg1 / empty / Press A / empty */
-                cur_y += line_height;  /* Empty separator */
-                cur_y += line_height;
-                if (saveload_substate == SAVELOAD_RESULT) {
-                    font_bmp_draw_main(x_item, cur_y, "Press A to continue.");
-                }
-                cur_y += line_height;  /* Empty for consistent height */
+            /* msg1 / empty / Press A / empty */
+            cur_y += line_height;  /* Empty separator */
+            cur_y += line_height;
+            if (saveload_substate == SAVELOAD_RESULT) {
+                font_bmp_draw_main(x_item, cur_y, "Press A to continue.");
             }
+            cur_y += line_height;  /* Empty for consistent height */
         } else if (saveload_substate == SAVELOAD_CONFIRM) {
             /* Layout: prompt / Yes / No / empty */
             font_bmp_set_color(text_color);
@@ -2575,7 +2708,10 @@ draw_saveload_tr(void) {
                 uint32_t old_ver = 0;
                 if (saveload_selected_device >= 0) {
                     int dev_idx = saveload_cursor_to_device_index(saveload_selected_device);
-                    if (dev_idx >= 0) {
+                    if (dev_idx == 8) {
+                        /* SD card */
+                        old_ver = saveload_sd_version;
+                    } else if (dev_idx >= 0) {
                         old_ver = savefile_get_device_version(saveload_slots[dev_idx].device_id);
                     }
                 }
@@ -2600,7 +2736,7 @@ draw_saveload_tr(void) {
             cur_y += line_height;
         } else {
             /* BROWSE state - Layout: Save / Load / Close / empty */
-            int action_start_idx = device_count;
+            int action_start_idx = device_count;  /* device_count already includes SD if available */
 
             /* Line 1: Save to selected */
             cur_y += line_height;
@@ -2642,18 +2778,14 @@ draw_saveload_tr(void) {
         const int line_height = 26;
         const int padding = 16;
 
-        /* Calculate height based on content */
-        /* 4 ports * (header + 2 sockets) = 12 lines + 4 action area lines = 16 content lines */
-        int content_lines = 0;
-        for (int p = 0; p < 4; p++) {
-            content_lines++;  /* Port header */
-            content_lines += 2;  /* Two sockets */
-        }
+        /* Calculate height based on content:
+         * 4 ports × 2 lines each = 8 lines
+         * 1 Serial line
+         * 4 action area lines
+         * = 13 content lines + title */
+        int content_lines = 8 + 1 + 4;
 
-        /* Action area: all states use 4 lines for consistent window height */
-        content_lines += 4;
-
-        const int width = 400;
+        const int width = 420;
         const int height = (content_lines + 2) * line_height;
         const int x = (640 / 2) - (width / 2);
         const int y = (480 / 2) - (height / 2);
@@ -2681,26 +2813,19 @@ draw_saveload_tr(void) {
             }
         }
 
-        /* Draw ports and sockets */
+        /* Draw ports and sockets - compact layout: Port X - Socket 1 on same line */
         for (int p = 0; p < 4; p++) {
-            cur_y += line_height;
-            char port_label[16];
-            snprintf(port_label, sizeof(port_label), "Port %c", 'A' + p);
-            font_bmf_draw(x_item, cur_y, text_color, port_label);
-
-            /* Socket 1 */
+            /* Socket 1 row: "Port X - Socket 1: TYPE (status)" */
             cur_y += line_height;
             int slot_idx = p * 2;
             vmu_slot_info* slot = &saveload_slots[slot_idx];
 
             if (slot->has_device) {
-                /* Determine if this is highlighted or selected */
                 int is_cursor = (saveload_substate == SAVELOAD_BROWSE && cursor_idx == saveload_cursor);
                 int is_selected = (!saveload_cursor_on_device() && cursor_idx == saveload_selected_device);
 
                 uint32_t slot_color = is_cursor ? highlight_color : text_color;
 
-                /* Build status string */
                 char status_str[20];
                 if (slot->is_startup_source && slot->save_status == SAVE_CURRENT) {
                     strcpy(status_str, "(loaded)");
@@ -2720,19 +2845,18 @@ draw_saveload_tr(void) {
                     }
                 }
 
-                char line[48];
-                if (is_selected) {
-                    snprintf(line, sizeof(line), "> Socket 1: %s %s", slot->type_name, status_str);
-                } else {
-                    snprintf(line, sizeof(line), "   Socket 1: %s %s", slot->type_name, status_str);
-                }
+                char line[56];
+                snprintf(line, sizeof(line), "Port %c - Socket 1: %s %s%s",
+                         'A' + p, slot->type_name, status_str, is_selected ? " <" : "");
                 font_bmf_draw(x_item, cur_y, slot_color, line);
                 cursor_idx++;
             } else {
-                font_bmf_draw(x_item, cur_y, text_color, "   Socket 1: None");
+                char line[32];
+                snprintf(line, sizeof(line), "Port %c - Socket 1: None", 'A' + p);
+                font_bmf_draw(x_item, cur_y, text_color, line);
             }
 
-            /* Socket 2 */
+            /* Socket 2 row: "         Socket 2: TYPE (status)" - aligned under Socket 1 */
             cur_y += line_height;
             slot_idx = p * 2 + 1;
             slot = &saveload_slots[slot_idx];
@@ -2763,16 +2887,52 @@ draw_saveload_tr(void) {
                 }
 
                 char line[48];
-                if (is_selected) {
-                    snprintf(line, sizeof(line), "> Socket 2: %s %s", slot->type_name, status_str);
-                } else {
-                    snprintf(line, sizeof(line), "   Socket 2: %s %s", slot->type_name, status_str);
-                }
-                font_bmf_draw(x_item, cur_y, slot_color, line);
+                /* Fixed pixel offset to align "Socket 2" under "Socket 1" */
+                snprintf(line, sizeof(line), "Socket 2: %s %s%s",
+                         slot->type_name, status_str, is_selected ? " <" : "");
+                font_bmf_draw(x_item + 72, cur_y, slot_color, line);
                 cursor_idx++;
             } else {
-                font_bmf_draw(x_item, cur_y, text_color, "   Socket 2: None");
+                /* Fixed pixel offset to align with Socket 1 */
+                font_bmf_draw(x_item + 72, cur_y, text_color, "Socket 2: None");
             }
+        }
+
+        /* Serial row - SD card, separate from port entries */
+        cur_y += line_height;
+        if (saveload_sd_available) {
+            int is_cursor = (saveload_substate == SAVELOAD_BROWSE && cursor_idx == saveload_cursor);
+            int is_selected = (!saveload_cursor_on_device() && saveload_selected_device == cursor_idx);
+
+            uint32_t sd_color = is_cursor ? highlight_color : text_color;
+
+            char status_str[20];
+            if (saveload_sd_is_startup_source &&
+                (saveload_sd_status == SD_STATUS_READY || saveload_sd_status == SD_STATUS_OLD)) {
+                strcpy(status_str, "(loaded)");
+            } else {
+                switch (saveload_sd_status) {
+                    case SD_STATUS_NO_FILE: strcpy(status_str, "(no save)"); break;
+                    case SD_STATUS_READY: strcpy(status_str, "(saved)"); break;
+                    case SD_STATUS_OLD: {
+                        snprintf(status_str, sizeof(status_str), "(old v%lu)",
+                                 (unsigned long)saveload_sd_version);
+                        break;
+                    }
+                    case SD_STATUS_INVALID: strcpy(status_str, "(invalid)"); break;
+                    case SD_STATUS_NO_SPACE: strcpy(status_str, "(full)"); break;
+                    case SD_STATUS_FUTURE: strcpy(status_str, "(future)"); break;
+                    default: strcpy(status_str, ""); break;
+                }
+            }
+
+            char line[48];
+            snprintf(line, sizeof(line), "Serial - SD card %s%s", status_str, is_selected ? " <" : "");
+            font_bmf_draw(x_item, cur_y, sd_color, line);
+            cursor_idx++;
+            device_count++;
+        } else {
+            font_bmf_draw(x_item, cur_y, text_color, "Serial - SD card");
         }
 
         /* Spacing before action area */
@@ -2786,24 +2946,13 @@ draw_saveload_tr(void) {
                 font_bmf_draw(x_item, cur_y, text_color, saveload_msg_line1);
             }
 
-            if (saveload_msg_line2) {
-                /* With context: msg1 / msg2 / empty / Press A */
-                cur_y += line_height;
-                font_bmf_draw(x_item, cur_y, text_color, saveload_msg_line2);
-                cur_y += line_height;  /* Empty separator */
-                cur_y += line_height;
-                if (saveload_substate == SAVELOAD_RESULT) {
-                    font_bmf_draw(x_item, cur_y, text_color, "Press A to continue.");
-                }
-            } else {
-                /* No context: msg1 / empty / Press A / empty */
-                cur_y += line_height;  /* Empty separator */
-                cur_y += line_height;
-                if (saveload_substate == SAVELOAD_RESULT) {
-                    font_bmf_draw(x_item, cur_y, text_color, "Press A to continue.");
-                }
-                cur_y += line_height;  /* Empty for consistent height */
+            /* msg1 / empty / Press A / empty */
+            cur_y += line_height;  /* Empty separator */
+            cur_y += line_height;
+            if (saveload_substate == SAVELOAD_RESULT) {
+                font_bmf_draw(x_item, cur_y, text_color, "Press A to continue.");
             }
+            cur_y += line_height;  /* Empty for consistent height */
         } else if (saveload_substate == SAVELOAD_CONFIRM) {
             /* Layout: prompt / Yes / No / empty */
             /* Line 1: Prompt message */
@@ -2812,7 +2961,10 @@ draw_saveload_tr(void) {
                 uint32_t old_ver = 0;
                 if (saveload_selected_device >= 0) {
                     int dev_idx = saveload_cursor_to_device_index(saveload_selected_device);
-                    if (dev_idx >= 0) {
+                    if (dev_idx == 8) {
+                        /* SD card */
+                        old_ver = saveload_sd_version;
+                    } else if (dev_idx >= 0) {
                         old_ver = savefile_get_device_version(saveload_slots[dev_idx].device_id);
                     }
                 }
@@ -2835,7 +2987,7 @@ draw_saveload_tr(void) {
             cur_y += line_height;
         } else {
             /* BROWSE state - Layout: Save / Load / Close / empty */
-            int action_start_idx = device_count;
+            int action_start_idx = device_count;  /* device_count already includes SD if available */
 
             /* Line 1: Save to selected */
             cur_y += line_height;
@@ -2864,3 +3016,308 @@ draw_saveload_tr(void) {
 }
 
 #pragma endregion SaveLoad_Menu
+
+/* COMPACTION_TEST_START */
+#pragma region Compaction_Test_Menu
+
+/* Compaction test states */
+typedef enum {
+    COMPACTION_INIT,
+    COMPACTION_CONFIRM,
+    COMPACTION_BACKUP,
+    COMPACTION_FILLING,
+    COMPACTION_RESULT,
+    COMPACTION_RESTORING,
+    COMPACTION_DONE,
+    COMPACTION_ERROR
+} compaction_test_state_t;
+
+static compaction_test_state_t compaction_state = COMPACTION_INIT;
+static const char* compaction_msg = NULL;
+
+static void
+compaction_test_setup_internal(void) {
+    compaction_state = COMPACTION_CONFIRM;
+    compaction_msg = "Test flashrom partition compaction?";
+}
+
+void
+compaction_test_setup(enum draw_state* state, theme_color* _colors, int* timeout_ptr, uint32_t title_color) {
+    common_setup(state, _colors, timeout_ptr);
+    menu_title_color = title_color;
+    compaction_test_setup_internal();
+}
+
+static void
+compaction_test_close(void) {
+    compaction_test_cleanup();
+    *state_ptr = DRAW_MENU;
+    *input_timeout_ptr = 3;
+}
+
+void
+handle_input_compaction_test(enum control input) {
+    switch (compaction_state) {
+        case COMPACTION_CONFIRM:
+            if (input == A) {
+                /* Start the test */
+                compaction_state = COMPACTION_BACKUP;
+            } else if (input == B) {
+                compaction_test_close();
+            }
+            break;
+
+        case COMPACTION_BACKUP:
+            /* Init will be called in draw, transitions automatically */
+            break;
+
+        case COMPACTION_FILLING:
+            /* Step will be called in draw, transitions automatically */
+            /* Allow B to cancel and restore */
+            if (input == B) {
+                compaction_state = COMPACTION_RESTORING;
+            }
+            break;
+
+        case COMPACTION_RESULT:
+            /* Test completed - need to restore partition */
+            if (input == A || input == B) {
+                compaction_state = COMPACTION_RESTORING;
+            }
+            break;
+
+        case COMPACTION_ERROR:
+            /* Error occurred (e.g., backup failed) - just close, nothing to restore */
+            if (input == A || input == B) {
+                compaction_test_close();
+            }
+            break;
+
+        case COMPACTION_RESTORING:
+            /* Restore will be called in draw, transitions automatically */
+            break;
+
+        case COMPACTION_DONE:
+            if (input == A || input == B) {
+                compaction_test_close();
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
+static void
+update_compaction_test(void) {
+    int8_t result;
+
+    switch (compaction_state) {
+        case COMPACTION_BACKUP:
+            result = compaction_test_init();
+            if (result == 0) {
+                compaction_state = COMPACTION_FILLING;
+            } else {
+                compaction_msg = compaction_test_get_status();
+                compaction_state = COMPACTION_ERROR;
+            }
+            break;
+
+        case COMPACTION_FILLING:
+            result = compaction_test_step();
+            if (result == 1) {
+                /* Done filling */
+                int test_result = compaction_test_get_result();
+                if (test_result == 1) {
+                    compaction_msg = "SUCCESS: Compaction occurred!";
+                } else if (test_result == 0) {
+                    compaction_msg = "FAILURE: No compaction detected.";
+                } else {
+                    compaction_msg = compaction_test_get_status();
+                }
+                compaction_state = COMPACTION_RESULT;
+            } else if (result < 0) {
+                compaction_msg = compaction_test_get_status();
+                compaction_state = COMPACTION_ERROR;
+            }
+            /* result == 0 means continue */
+            break;
+
+        case COMPACTION_RESTORING:
+            result = compaction_test_restore();
+            if (result == 0) {
+                compaction_msg = "Partition restored.";
+                compaction_state = COMPACTION_DONE;
+            } else {
+                compaction_msg = "WARNING: Restore failed!";
+                compaction_state = COMPACTION_DONE;
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
+void
+draw_compaction_test_op(void) {
+    /* Update state machine each frame */
+    update_compaction_test();
+}
+
+void
+draw_compaction_test_tr(void) {
+    z_set_cond(205.0f);
+
+    int width = 280;
+    int height = 120;
+    int x = (640 - width) / 2;
+    int y = (480 - height) / 2;
+
+    draw_popup_menu(x, y, width, height);
+
+    int x_text = x + 12;
+    int y_text = y + 8;
+    char line[64];
+
+    if (sf_ui[0] == UI_SCROLL || sf_ui[0] == UI_FOLDERS) {
+        /* Scroll/Folders mode - bitmap font */
+        int line_height = 20;
+
+        font_bmp_begin_draw();
+
+        /* Title */
+        font_bmp_set_color(menu_title_color);
+        font_bmp_draw_main(x_text, y_text, "Flashrom Compaction Test");
+        y_text += line_height + 4;
+
+        switch (compaction_state) {
+            case COMPACTION_CONFIRM:
+                font_bmp_set_color(text_color);
+                font_bmp_draw_main(x_text, y_text, "Fill flashrom partition 2 to");
+                y_text += line_height;
+                font_bmp_draw_main(x_text, y_text, "test BIOS auto-compaction.");
+                y_text += line_height + 4;
+                font_bmp_set_color(highlight_color);
+                font_bmp_draw_main(x_text, y_text, "A: Start   B: Cancel");
+                break;
+
+            case COMPACTION_BACKUP:
+                font_bmp_set_color(text_color);
+                font_bmp_draw_main(x_text, y_text, "Backing up partition...");
+                break;
+
+            case COMPACTION_FILLING:
+                snprintf(line, sizeof(line), "Writing: %d / %d",
+                         compaction_test_get_write_count(),
+                         compaction_test_get_total_blocks());
+                font_bmp_set_color(text_color);
+                font_bmp_draw_main(x_text, y_text, line);
+                y_text += line_height;
+                font_bmp_draw_main(x_text, y_text, "B: Cancel and restore");
+                break;
+
+            case COMPACTION_RESULT:
+                font_bmp_set_color(text_color);
+                if (compaction_msg) {
+                    font_bmp_draw_main(x_text, y_text, compaction_msg);
+                }
+                y_text += line_height + 4;
+                font_bmp_set_color(highlight_color);
+                font_bmp_draw_main(x_text, y_text, "Press A/B to restore");
+                break;
+
+            case COMPACTION_ERROR:
+                font_bmp_set_color(text_color);
+                if (compaction_msg) {
+                    font_bmp_draw_main(x_text, y_text, compaction_msg);
+                }
+                y_text += line_height + 4;
+                font_bmp_set_color(highlight_color);
+                font_bmp_draw_main(x_text, y_text, "Press A/B to close");
+                break;
+
+            case COMPACTION_RESTORING:
+                font_bmp_set_color(text_color);
+                font_bmp_draw_main(x_text, y_text, "Restoring partition...");
+                break;
+
+            case COMPACTION_DONE:
+                font_bmp_set_color(text_color);
+                if (compaction_msg) {
+                    font_bmp_draw_main(x_text, y_text, compaction_msg);
+                }
+                y_text += line_height + 4;
+                font_bmp_set_color(highlight_color);
+                font_bmp_draw_main(x_text, y_text, "Press A/B to close");
+                break;
+
+            default:
+                break;
+        }
+    } else {
+        /* LineDesc/Grid mode - bmf font */
+        int line_height = 24;
+
+        /* Title */
+        font_bmf_draw(x_text, y_text, menu_title_color, "Flashrom Compaction Test");
+        y_text += line_height + 4;
+
+        switch (compaction_state) {
+            case COMPACTION_CONFIRM:
+                font_bmf_draw(x_text, y_text, text_color, "Fill flashrom partition 2 to");
+                y_text += line_height;
+                font_bmf_draw(x_text, y_text, text_color, "test BIOS auto-compaction.");
+                y_text += line_height + 4;
+                font_bmf_draw(x_text, y_text, highlight_color, "A: Start   B: Cancel");
+                break;
+
+            case COMPACTION_BACKUP:
+                font_bmf_draw(x_text, y_text, text_color, "Backing up partition...");
+                break;
+
+            case COMPACTION_FILLING:
+                snprintf(line, sizeof(line), "Writing: %d / %d",
+                         compaction_test_get_write_count(),
+                         compaction_test_get_total_blocks());
+                font_bmf_draw(x_text, y_text, text_color, line);
+                y_text += line_height;
+                font_bmf_draw(x_text, y_text, text_color, "B: Cancel and restore");
+                break;
+
+            case COMPACTION_RESULT:
+                if (compaction_msg) {
+                    font_bmf_draw(x_text, y_text, text_color, compaction_msg);
+                }
+                y_text += line_height + 4;
+                font_bmf_draw(x_text, y_text, highlight_color, "Press A/B to restore");
+                break;
+
+            case COMPACTION_ERROR:
+                if (compaction_msg) {
+                    font_bmf_draw(x_text, y_text, text_color, compaction_msg);
+                }
+                y_text += line_height + 4;
+                font_bmf_draw(x_text, y_text, highlight_color, "Press A/B to close");
+                break;
+
+            case COMPACTION_RESTORING:
+                font_bmf_draw(x_text, y_text, text_color, "Restoring partition...");
+                break;
+
+            case COMPACTION_DONE:
+                if (compaction_msg) {
+                    font_bmf_draw(x_text, y_text, text_color, compaction_msg);
+                }
+                y_text += line_height + 4;
+                font_bmf_draw(x_text, y_text, highlight_color, "Press A/B to close");
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
+#pragma endregion Compaction_Test_Menu
+/* COMPACTION_TEST_END */

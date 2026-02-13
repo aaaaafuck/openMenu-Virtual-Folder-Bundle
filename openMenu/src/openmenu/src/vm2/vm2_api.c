@@ -62,7 +62,7 @@ vm2_reply(struct maple_state_str*, maple_frame_t* frm) {
     resp = (maple_response_t*)frm->recv_buf;
 
     if (resp->response != MAPLE_RESPONSE_OK) {
-        printf("maple: bad response %d on device, wait ACK\n", resp->response);
+        /* printf("maple: bad response %d on device, wait ACK\n", resp->response); */
     }
 
     memcpy(recv_buff, resp, 4);

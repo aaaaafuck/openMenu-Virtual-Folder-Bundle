@@ -25,6 +25,7 @@ dotnet publish src\GDMENUCardManager\GDMENUCardManager.csproj -c Release -o "%OU
 if %ERRORLEVEL% neq 0 goto :error
 xcopy /E /I /Y src\GDMENUCardManager.Core\tools "%OUTPUT_DIR%\tools\"
 copy /Y redump2cdi\windows-x86_64-msvc\redump2cdi.exe "%OUTPUT_DIR%\tools\"
+if exist src\GDMENUCardManager.Core\runtimes\win-x64\native\libchdr.dll copy /Y src\GDMENUCardManager.Core\runtimes\win-x64\native\libchdr.dll "%OUTPUT_DIR%\"
 copy /Y LICENSE "%OUTPUT_DIR%\"
 copy /Y README.md "%OUTPUT_DIR%\"
 cd "%OUTPUT_DIR%" && tar -a -c -f ..\GDMENUCardManager.%VERSION%-win-x64.zip * && cd ..\..
@@ -42,6 +43,7 @@ dotnet publish src\GDMENUCardManager\GDMENUCardManager.csproj -c Release -r win-
 if %ERRORLEVEL% neq 0 goto :error
 xcopy /E /I /Y src\GDMENUCardManager.Core\tools "%OUTPUT_DIR%\tools\"
 copy /Y redump2cdi\windows-x86-msvc\redump2cdi.exe "%OUTPUT_DIR%\tools\"
+if exist src\GDMENUCardManager.Core\runtimes\win-x86\native\libchdr.dll copy /Y src\GDMENUCardManager.Core\runtimes\win-x86\native\libchdr.dll "%OUTPUT_DIR%\"
 copy /Y LICENSE "%OUTPUT_DIR%\"
 copy /Y README.md "%OUTPUT_DIR%\"
 cd "%OUTPUT_DIR%" && tar -a -c -f ..\GDMENUCardManager.%VERSION%-win-x86.zip * && cd ..\..
@@ -58,6 +60,7 @@ dotnet publish src\GDMENUCardManager.AvaloniaUI\GDMENUCardManager.AvaloniaUI.csp
 if %ERRORLEVEL% neq 0 goto :error
 xcopy /E /I /Y src\GDMENUCardManager.Core\tools "%OUTPUT_DIR%\tools\"
 copy /Y redump2cdi\linux-x86_64\redump2cdi "%OUTPUT_DIR%\tools\"
+if exist src\GDMENUCardManager.Core\runtimes\linux-x64\native\libchdr.so copy /Y src\GDMENUCardManager.Core\runtimes\linux-x64\native\libchdr.so "%OUTPUT_DIR%\"
 copy /Y LICENSE "%OUTPUT_DIR%\"
 copy /Y README.md "%OUTPUT_DIR%\"
 cd _releases && tar -czf GDMENUCardManager.%VERSION%-linux-x64.tar.gz GDMENUCardManager.%VERSION%-linux-x64 && cd ..
@@ -74,6 +77,7 @@ dotnet publish src\GDMENUCardManager.AvaloniaUI\GDMENUCardManager.AvaloniaUI.csp
 if %ERRORLEVEL% neq 0 goto :error
 xcopy /E /I /Y src\GDMENUCardManager.Core\tools "%TEMP_OUTPUT_DIR%\tools\"
 copy /Y redump2cdi\macos-x86_64\redump2cdi "%TEMP_OUTPUT_DIR%\tools\"
+if exist src\GDMENUCardManager.Core\runtimes\osx-x64\native\libchdr.dylib copy /Y src\GDMENUCardManager.Core\runtimes\osx-x64\native\libchdr.dylib "%TEMP_OUTPUT_DIR%\"
 copy /Y LICENSE "%TEMP_OUTPUT_DIR%\"
 copy /Y README.md "%TEMP_OUTPUT_DIR%\"
 echo Creating macOS .app bundle...

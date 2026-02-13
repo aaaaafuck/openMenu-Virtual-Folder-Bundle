@@ -83,6 +83,10 @@ extern uint8_t* sf_boot_mode;
 #define sf_boot_mode_type   CRAYON_TYPE_UINT8
 #define sf_boot_mode_length 1
 
+extern uint8_t* sf_vmu_time_sync;
+#define sf_vmu_time_sync_type   CRAYON_TYPE_UINT8
+#define sf_vmu_time_sync_length 1
+
 enum savefile_version {
     SFV_INITIAL = 1,
     SFV_BIOS_3D,
@@ -96,6 +100,7 @@ enum savefile_version {
     SFV_MULTIDISC_GROUPING,
     SFV_VM2_SEND_ALL,
     SFV_BOOT_MODE,
+    SFV_VMU_TIME_SYNC,
     SFV_LATEST_PLUS_ONE //DON'T REMOVE
 };
 
@@ -265,9 +270,18 @@ typedef enum CFG_BOOT_MODE {
     BOOT_MODE_END = BOOT_MODE_FAST
 } CFG_BOOT_MODE;
 
+typedef enum CFG_VMU_TIME_SYNC {
+    VMU_TIME_SYNC_START = 0,
+    VMU_TIME_SYNC_OFF = VMU_TIME_SYNC_START,
+    VMU_TIME_SYNC_ON,
+    VMU_TIME_SYNC_END = VMU_TIME_SYNC_ON
+} CFG_VMU_TIME_SYNC;
+
 typedef CFG_REGION region;
 
-enum draw_state { DRAW_UI = 0, DRAW_MULTIDISC, DRAW_EXIT, DRAW_MENU, DRAW_CREDITS, DRAW_CODEBREAKER, DRAW_PSX_LAUNCHER, DRAW_SAVELOAD };
+/* COMPACTION_TEST_START */
+enum draw_state { DRAW_UI = 0, DRAW_MULTIDISC, DRAW_EXIT, DRAW_MENU, DRAW_CREDITS, DRAW_CODEBREAKER, DRAW_PSX_LAUNCHER, DRAW_SAVELOAD, DRAW_COMPACTION_TEST };
+/* COMPACTION_TEST_END */
 
 void settings_sanitize();
 

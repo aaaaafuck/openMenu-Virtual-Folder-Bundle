@@ -20,6 +20,7 @@ uint8_t* sf_disc_details;
 uint8_t* sf_clock;
 uint8_t* sf_vm2_send_all;
 uint8_t* sf_boot_mode;
+uint8_t* sf_vmu_time_sync;
 
 void
 settings_sanitize() {
@@ -43,9 +44,8 @@ settings_sanitize() {
         sf_filter[0] = FILTER_ALL;
     }
 
-    if ((sf_beep[0] < BEEP_START) || (sf_beep[0] > BEEP_END)) {
-        sf_beep[0] = BEEP_ON;
-    }
+    /* Force beep OFF - UI option is hidden, may re-enable later */
+    sf_beep[0] = BEEP_OFF;
 
     if ((sf_multidisc[0] < MULTIDISC_START) || (sf_multidisc[0] > MULTIDISC_END)) {
         sf_multidisc[0] = MULTIDISC_SHOW;
@@ -105,5 +105,9 @@ settings_sanitize() {
 
     if ((sf_boot_mode[0] < BOOT_MODE_START) || (sf_boot_mode[0] > BOOT_MODE_END)) {
         sf_boot_mode[0] = BOOT_MODE_FULL;
+    }
+
+    if ((sf_vmu_time_sync[0] < VMU_TIME_SYNC_START) || (sf_vmu_time_sync[0] > VMU_TIME_SYNC_END)) {
+        sf_vmu_time_sync[0] = VMU_TIME_SYNC_OFF;
     }
 }

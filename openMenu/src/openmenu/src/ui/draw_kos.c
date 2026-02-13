@@ -141,7 +141,7 @@ draw_load_texture_from_DAT_to_buffer(const struct dat_file* bin, const char* ID,
     image* img = (image*)user;
     pvr_ptr_t txr;
     int ret = DAT_read_file_by_ID(bin, ID, pvr_get_internal_buffer());
-    printf("DAT: read ID='%s' ret=%d\n", ID, ret);
+    /* printf("DAT: read ID='%s' ret=%d\n", ID, ret); */
     if (!ret) {
         img->texture = img_empty_boxart.texture;
         img->width = img_empty_boxart.width;
@@ -152,7 +152,7 @@ draw_load_texture_from_DAT_to_buffer(const struct dat_file* bin, const char* ID,
 
     txr = load_pvr_from_buffer_to_buffer(pvr_get_internal_buffer(), &img->width, &img->height, &img->format, buffer);
     img->texture = txr;
-    printf("DAT: img w=%lu h=%lu fmt=%lu\n", img->width, img->height, img->format);
+    /* printf("DAT: img w=%lu h=%lu fmt=%lu\n", img->width, img->height, img->format); */
 
     return user;
 }
@@ -237,8 +237,8 @@ draw_draw_sub_image(int x, int y, float width, float height, uint32_t color, voi
             case 512:
             case 1024: break;
             default:
-                printf("%s error tex size %d(%ld) %d(%ld)\n", __func__, context.txr.width, img->width,
-                       context.txr.height, img->height);
+                /* printf("%s error tex size %d(%ld) %d(%ld)\n", __func__, context.txr.width, img->width,
+                       context.txr.height, img->height); */
                 return;
                 break;
         }
@@ -336,8 +336,8 @@ draw_draw_quad(int x, int y, float width, float height, uint32_t color) {
             case 512:
             case 1024: break;
             default:
-                printf("%s error tex size %d(%f) %d(%f)\n", __func__, context.txr.width, width, context.txr.height,
-                       height);
+                /* printf("%s error tex size %d(%f) %d(%f)\n", __func__, context.txr.width, width, context.txr.height,
+                       height); */
                 return;
                 break;
         }

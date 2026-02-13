@@ -88,7 +88,7 @@ texman_reserve_memory(uint32_t width, uint32_t height, int bpp) {
                (uint32_t)textures[tex_number].location, (tex_buffer_max - tex_buffer) / 1024);
 #endif
     } else {
-        printf("TEX_MAN: potential memory overrun! free space: %d bytes\n", texman_get_space_available());
+        /* printf("TEX_MAN: potential memory overrun! free space: %d bytes\n", texman_get_space_available()); */
     }
     return &textures[tex_number];
 }

@@ -64,12 +64,12 @@ To accommodate the new openMenu, a modified version of [GD MENU Card Manager](ht
     - [Grid/LineDesc Mode Settings](#gridlinedesc-mode-settings)
     - [Scroll Mode Settings](#scroll-mode-settings)
     - [Folders Mode Settings](#folders-mode-settings)
-- [Button Mapping](#button-mapping)
-  - [Grid and LineDesc Modes](#grid-and-linedesc-modes)
-  - [Scroll Mode](#scroll-mode)
-  - [Folders Mode](#folders-mode)
-  - [Popup Menus (All Modes)](#popup-menus-all-modes)
-- [Keyboard Support](#keyboard-support)
+  - [Button Mapping](#button-mapping)
+    - [Grid/LineDesc Mode](#gridlinedesc-mode)
+    - [Scroll Mode](#scroll-mode)
+    - [Folders Mode](#folders-mode)
+    - [Popup Menus (All Modes)](#popup-menus-all-modes)
+  - [Keyboard Support](#keyboard-support)
 - [Theming](#theming)
   - [Installing Additional Themes](#installing-additional-themes)
   - [Theme Format](#theme-format)
@@ -86,21 +86,37 @@ To accommodate the new openMenu, a modified version of [GD MENU Card Manager](ht
 
 ## Current Version
 
-The latest version of **openMenu Virtual Folder Bundle** is [1.2-ateam](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/releases/tag/1.2-ateam).
+The latest version of **openMenu Virtual Folder Bundle** is [1.3-ateam](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/releases/tag/1.3-ateam).
 
 ## Roadmap Ideas
 
-- Extend GD MENU Card Manager's support of archive formats to CHD for purposes of automatically extracting and adding disc images to SD card.
+- Built-in virtual per-game VMU saving/loading with no external requirement except an inexpensive serial SD adapter.
 - New metadata format with optional openMenu popup window when a disc image is selected, showing screenshots, description, and more.
-- Support saving/loading openMenu configuration to/from serial SD reader.
 - See [Dreamcast Now](https://dreamcast.online/now/) information directly from openMenu (DreamPi or BBA required).
 - Implement a housekeeping function in GD MENU Card Manager to help users easily identify gaps or issues with their disc image collection (e.g., duplicate serials, missing artwork, missing discs in multi-disc sets).
-- Add ability to use any arbitrary path in GD MENU Card Manager as if it were an SD card, useful for those who keep separate backups of their GDEMU SD card.
 - Support artwork assignment for folders.
 - Add drag-and-drop support to Linux version of GD MENU Card Manager.
 
 ## Changelog
 
+- **Version 1.3-ateam (2026-02-13)**
+  - **openMenu**
+    - Support added for saving/loading settings to/from serial SD (see [Issue 84](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/84)).
+    - DreamConn S "Exit to BIOS" fixed (should only cater to VM2) (see [Issue 82](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/82)).
+    - Changed settings are now automatically applied after saving settings (see [Issue 80](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/80)).
+    - Errors on Save/Load window no longer render outside of window (see [Issue 79](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/79)).
+    - Date/time from VMU can now be synchronized to console (see [Issue 70](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/70)).
+    - Loading splash screen has been added (see [Issue 91](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/91)).
+    - Keyboard shortcut added to jump to items in list starting with any given character (see [Issue 92](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/92)).
+    - Very rare, difficult to reproduce bug fixed where openMenu fails to launch without a VMU present (see [Issue 87](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/87)).
+    - Popup window tweaks (see [Issue 94](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/94)).
+  - **GD MENU Card Manager**
+    - Disc images in CHD format are now automatically decompressed (see [Issue 45](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/45)).
+    - Custom paths (not just SD cards) can now be used (see [Issue 89](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/89)).
+    - Margins and vertical centering of several UI elements fixed (see [Issue 90](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/90)).
+    - Info window height fixed, was too tall (see [Issue 93](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/93)).
+    - Ellipses after progress bar messages no longer have an extra space before it (see [Issue 81](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/81)).
+    - New optimized auto-creation of GDEMU.INI file if none exists (see [Issue 95](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/95)).
 - **Version 1.2-ateam (2026-02-05)**
   - **openMenu**
     - New VMU save/load functionality with live detection of VMU devices upon loading the save manager, plus ability to upgrade old save files (see [Issue 60](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/60)).
@@ -196,6 +212,9 @@ The latest version of **openMenu Virtual Folder Bundle** is [1.2-ateam](https://
   - Retro Repair Corner
   - Farkus
   - FMRad10
+  - Colin L.
+  - PlayerGameSK
+  - Virtua Shenmue
 - **Special Thanks**
   - mrneo240 for his original work on openMenu
   - megavolt85 for forking openMenu and adding new features
@@ -337,7 +356,7 @@ This collection contains high-quality cover images that can be used with the art
 
 1. Insert GDEMU SD card into computer.
 2. Launch GD MENU Card Manager.
-3. Select SD card from the **Drive** dropdown. The application will auto-detect drives containing `GDEMU.ini` or a folder named `01`.
+3. Select SD card from the **SD Drive** dropdown. The application will auto-detect drives containing `GDEMU.INI` or a folder named `01`. Alternatively, click the folder browse icon to the left of the dropdown to select any custom path to be treated as if it were a GDEMU SD card.
 4. Choose a **Menu Type**:
    - **gdMenu** - Traditional Scroll mode menu interface.
    - **openMenu** - Full-featured menu with virtual folder support.
@@ -368,7 +387,7 @@ The games list displays all disc images currently on the SD card. Each column se
 Games can be added in three ways:
 
 - Click the **Add** button (plus icon) and select one or more files from the file browser.
-- Drag and drop files directly onto the application window (Windows and MacOS only).
+- Drag and drop files directly onto the application window (Windows and macOs only).
 - Add compressed archives (7Z, RAR, ZIP) containing supported disc images.
 
 Supported disc image formats: GDI, CDI, CCD, MDS, and CUE/BIN (Redump format).
@@ -458,7 +477,7 @@ The **Type** column categorizes disc images:
 |------|-------------|
 | **Game** | Standard Dreamcast game (default). |
 | **Other** | Non-game discs (audio CDs, utilities). These skip the full boot sequence and return directly to the BIOS. |
-| **PSX** | PlayStation disc images for use with either the Bleem! or Bloom emulators. |
+| **PSX** | PlayStation disc images for use with either the Bleem! or Bloom emulators (see the [PlayStation Emulator Feature](#playstation-emulator-feature) section). |
 
 #### Searching
 
@@ -608,11 +627,15 @@ Note that unlike previous versions of openMenu, **openMenu Virtual Folder Bundle
 
 ### Save/Load Manager
 
-openMenu includes a Save/Load Manager for managing VMU configuration save files. Access it from the Credits screen by selecting "Save/Load Manager".
+openMenu includes a Save/Load Manager for managing VMU configuration save files, including support for saving/loading settings to/from the serial SD adapter.
+
+Access it from the Settings menu by selecting "Save/Load".
+
+Note that when openMenu launches, it first scans for a serial SD card with valid openMenu settings saved to it. If found, those settings are automatically loaded and no VMU save file scan is performed. If a serial SD card with valid settings is not found, openMenu will automatically load saved settings from the first VMU that it finds (starting with Port A, Socket 1). If no valid settings are found, openMenu's default settings are used instead.
 
 **Features:**
 
-- **Live VMU Detection**: The manager scans all four controller ports and both VMU sockets, displaying detected devices in real time. Device types (standard VMU, VM2, VMUPro, USB4MAPLE) are identified and shown.
+- **Live VMU Detection**: The manager scans all four controller ports and both VMU sockets, displaying detected devices in real time. Device types (standard VMU, VM2, VMUPro, USB4MAPLE, and Pico2Maple) are identified and shown.
 
 - **Save Status Display**: Each detected VMU shows its current save status:
   - **(no save)**: No openMenu save file exists on this VMU.
@@ -641,6 +664,8 @@ openMenu features a built-in version of the Bleemcast! emulator for launching Pl
 Support also exists for the work-in-progress [Bloom](https://github.com/pcercuei/bloom) emulator. Users can compile Bloom from source and then place `BLOOM.BIN` in the `tools\openMenu\menu_data` folder, after which launching a PlayStation disc will bring up a menu allowing for the selection between Bleemcast! and Bloom.
 
 It's important to note that Bloom is early in its development, and while it impressively places heavy emphasis on accuracy and compatibility, most games are not currently in a playable state.
+
+To add PlayStation discs in CUE/BIN format to an SD card with GD MENU Card Manager, download [CUE2CCD](https://segaxtreme.net/resources/cue2ccd.386/) and drag the CUE file onto the executable. Once the converted disc image in CCD/IMG/SUB format is added to Games List, ensure the value in the **Type** column is "PSX".
 
 ### Multi-Disc Launcher
 
@@ -742,7 +767,7 @@ Each view mode has its own set of available settings. Below is a breakdown of ea
 
 ### Button Mapping
 
-#### Grid and LineDesc Modes
+#### Grid/LineDesc Mode
 
 | Button | Function |
 |--------|----------|
@@ -798,14 +823,15 @@ Thanks to [Xerxes3rd](https://github.com/DerekPascarella/openMenu-Virtual-Folder
 
 | Keyboard Key     | Dreamcast Button            |
 |------------------|-----------------------------|
-| Arrow Keys       | D-Pad (Up/Down/Left/Right)  |
-| Z or Space       | A button                    |
-| X or Escape      | B button                    |
-| A                | X button                    |
-| S                | Y button                    |
-| Enter            | Start                       |
-| Q or Page Up     | Left Trigger                |
-| W or Page Down   | Right Trigger               |
+| Arrow Keys       | D-Pad (Up/Down/Left/Right) |
+| Z or Space       | A button |
+| X or Escape      | B button |
+| A                | X button |
+| S                | Y button |
+| Enter            | Start |
+| Q or Page Up     | Left Trigger |
+| W or Page Down   | Right Trigger |
+| Shift + A-Z/0-9  | Jump to next item starting with that character |
 
 ## Theming
 
@@ -972,7 +998,7 @@ Split a 640x480px background image across these two PNGs, noting that the bottom
 
 Next, open each PNG in [PVR Tool](https://www.romhacking.net/utilities/1463/).
 
-For `BG_L.PNG`, navigate to **Tools → Set Global Index** and use the value `1025`. Next, Navigate to **File → Save** As, using `565` for **Format**, `no palette` for **Palette**, only `Twiddle` for **Options**, and `BG_L.PVR` as the destination file name.
+For `BG_L.PNG`, navigate to **Tools → Set Global Index** and use the value `1025`. Next, Navigate to **File → Save As**, using `565` for **Format**, `no palette` for **Palette**, only `Twiddle` for **Options**, and `BG_L.PVR` as the destination file name.
 
 For `BG_R.PNG`, navigate to **Tools → Set Global Index** and use the value `1026`. Next, Navigate to **File → Save As**, using `565` for **Format**, `no palette` for **Palette**, and `BG_R.PVR` as the destination file name.
 

@@ -5,12 +5,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:GDMENUCardManager"
         mc:Ignorable="d"
-        Title="Info" Height="460" Width="650" ResizeMode="NoResize" WindowStartupLocation="CenterOwner">
+        Title="Info" SizeToContent="Height" Width="650" ResizeMode="NoResize" WindowStartupLocation="CenterOwner">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="1*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="1*"/>
@@ -31,8 +30,6 @@
                 <Image Source="{Binding GdTexture, Mode=OneWay}"/>
             </Grid>
         </GroupBox>
-        
-        <!--<Button Grid.Row="2" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="40" Padding="5" Margin="5" IsCancel="True" IsDefault="True">Close</Button>-->
-        
+
     </Grid>
 </Window>

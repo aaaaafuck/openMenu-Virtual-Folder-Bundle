@@ -4,13 +4,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
         x:Class="GDMENUCardManager.InfoWindow"
-        Title="Info" Height="400" Width="650" CanResize="False"
+        Title="Info" SizeToContent="Height" Width="650" CanResize="False"
         WindowStartupLocation="CenterOwner">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
-      <RowDefinition Height="1*"/>
     </Grid.RowDefinitions>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="1*"/>

@@ -57,9 +57,22 @@ namespace GDMENUCardManager
             {
                 _DriveInfo = value;
                 Manager.ItemList.Clear();
-                Manager.sdPath = value?.RootDirectory.ToString();
+                if (value != null)
+                {
+                    // Clear custom path when selecting a drive
+                    if (IsUsingCustomPath)
+                    {
+                        CustomSdPath = null;
+                    }
+                    Manager.sdPath = value.RootDirectory.ToString();
+                }
+                else if (!IsUsingCustomPath)
+                {
+                    Manager.sdPath = null;
+                }
                 Filter = null;
                 RaisePropertyChanged();
+                RaisePropertyChanged(nameof(HasSdPath));
             }
         }
 
@@ -69,6 +82,23 @@ namespace GDMENUCardManager
             get { return _TempFolder; }
             set { _TempFolder = value; RaisePropertyChanged(); }
         }
+
+        private string _CustomSdPath;
+        public string CustomSdPath
+        {
+            get { return _CustomSdPath; }
+            set
+            {
+                _CustomSdPath = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged(nameof(IsUsingCustomPath));
+                RaisePropertyChanged(nameof(HasSdPath));
+            }
+        }
+
+        public bool IsUsingCustomPath => !string.IsNullOrEmpty(CustomSdPath);
+
+        public bool HasSdPath => SelectedDrive != null || IsUsingCustomPath;
 
         private string _TotalFilesLength;
         public string TotalFilesLength
@@ -175,12 +205,22 @@ namespace GDMENUCardManager
             var fullList = Manager.supportedImageFormats.Concat(compressedFileFormats).Select(x => $"*{x}").ToArray();
             fileFilterList = $"Dreamcast Game ({string.Join("; ", fullList)})|{string.Join(';', fullList)}";
 
-            this.Loaded += (ss, ee) =>
+            this.Loaded += async (ss, ee) =>
             {
                 HaveGDIShrinkBlacklist = File.Exists(Constants.GdiShrinkBlacklistFile);
-                FillDriveList();
+
+                // If custom path is set, load from it instead of searching for drives
+                if (IsUsingCustomPath)
+                {
+                    await LoadItemsFromCard();
+                }
+                else
+                {
+                    FillDriveList();
+                }
+
                 // Defer column visibility update until DataGrid is fully loaded
-                Dispatcher.BeginInvoke(new Action(() => UpdateFolderColumnVisibility()), System.Windows.Threading.DispatcherPriority.Loaded);
+                _ = Dispatcher.BeginInvoke(new Action(() => UpdateFolderColumnVisibility()), System.Windows.Threading.DispatcherPriority.Loaded);
             };
             this.Closing += MainWindow_Closing;
             this.PropertyChanged += MainWindow_PropertyChanged;
@@ -209,6 +249,7 @@ namespace GDMENUCardManager
                 TempFolder = tempFolderConfig;
             else
                 TempFolder = Path.GetTempPath();
+
             Title = "GD MENU Card Manager " + Constants.Version;
 
             //showAllDrives = true;
@@ -719,6 +760,7 @@ namespace GDMENUCardManager
         }
 
 
+
         void IDropTarget.DragOver(IDropInfo dropInfo)
         {
             if (dropInfo == null)
@@ -1078,7 +1120,49 @@ namespace GDMENUCardManager
 
         private void ButtonRefreshDrive_Click(object sender, RoutedEventArgs e)
         {
+            // Clear custom path if set
+            if (IsUsingCustomPath)
+            {
+                CustomSdPath = null;
+                Manager.sdPath = null;
+                Manager.ItemList.Clear();
+            }
             FillDriveList(true);
+        }
+
+        private async void ButtonBrowseSdPath_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+            {
+                dialog.Description = "Select SD Card Folder";
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    var selectedPath = dialog.SelectedPath;
+
+                    // Check if it looks like a GDEMU SD card
+                    bool hasGdemuIni = File.Exists(Path.Combine(selectedPath, Constants.MenuConfigTextFile));
+                    bool has01Folder = Directory.Exists(Path.Combine(selectedPath, "01"));
+
+                    if (!hasGdemuIni && !has01Folder)
+                    {
+                        MessageBox.Show(this,
+                            "The selected folder does not appear to be a GDEMU SD card.\n\n" +
+                            "No GDEMU.INI file or numbered folders (01, 02, etc.) were found.\n\n" +
+                            "You may proceed, but the folder may not work as expected.",
+                            "Notice",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+
+                    // Set the custom path
+                    CustomSdPath = selectedPath;
+                    Manager.sdPath = selectedPath;
+                    SelectedDrive = null; // Clear drive selection
+
+                    // Load items from the custom path
+                    await LoadItemsFromCard();
+                }
+            }
         }
 
         private void FillDriveList(bool isRefreshing = false)
@@ -1096,7 +1180,7 @@ namespace GDMENUCardManager
             foreach (DriveInfo drive in list)
             {
                 DriveList.Add(drive);
-                //look for GDEMU.ini file
+                //look for GDEMU.INI file
                 if (SelectedDrive == null && File.Exists(Path.Combine(drive.RootDirectory.FullName, Constants.MenuConfigTextFile)))
                     SelectedDrive = drive;
             }

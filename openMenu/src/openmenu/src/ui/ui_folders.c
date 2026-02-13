@@ -20,7 +20,9 @@
 
 #include <backend/gd_item.h>
 #include <backend/gd_list.h>
+#include <openmenu_debug.h>
 #include <openmenu_settings.h>
+#include <openmenu_savefile.h>
 #include "dc/input.h"
 #include "texture/txr_manager.h"
 #include "ui/draw_prototypes.h"
@@ -32,6 +34,15 @@
 #include "ui/ui_folders.h"
 
 #define UNUSED __attribute__((unused))
+
+/* Keyboard scancodes for quick-jump (from KOS keyboard.h) */
+#define KBD_KEY_A      0x04
+#define KBD_KEY_Z      0x1d
+#define KBD_KEY_1      0x1e
+#define KBD_KEY_9      0x26
+#define KBD_KEY_0      0x27
+#define KBD_MOD_LSHIFT 0x02
+#define KBD_MOD_RSHIFT 0x20
 
 /* Static resources */
 static image txr_bg_left, txr_bg_right;
@@ -558,6 +569,33 @@ draw_clock(void) {
     font_bmp_draw_main(right_x, clock_y, clock_buf);
 }
 
+/* VMU_SYNC_DEBUG_START */
+#if DEBUG_VMU_SYNC
+/* VMU Time Sync Debug Display - enable DEBUG_VMU_SYNC in openmenu_debug.h */
+static void
+draw_vmu_sync_debug(void) {
+#ifdef _arch_dreamcast
+    /* Only show if VMU Time Sync is enabled */
+    if (sf_vmu_time_sync[0] != VMU_TIME_SYNC_ON) {
+        return;
+    }
+
+    /* Draw debug info at bottom of screen */
+    font_bmp_begin_draw();
+    font_bmp_set_color(PVR_PACK_ARGB(255, 255, 255, 0));  /* Yellow text */
+
+    /* Draw header and five lines of debug info */
+    font_bmp_draw_main(10, 375, "--- VMU TIME SYNC DEBUG (0=OK, -999=not called) ---");
+    font_bmp_draw_main(10, 390, get_vmu_sync_debug_line1());
+    font_bmp_draw_main(10, 405, get_vmu_sync_debug_line2());
+    font_bmp_draw_main(10, 420, get_vmu_sync_debug_line3());
+    font_bmp_draw_main(10, 435, get_vmu_sync_debug_line4());
+    font_bmp_draw_main(10, 450, get_vmu_sync_debug_line5());
+#endif
+}
+#endif
+/* VMU_SYNC_DEBUG_END */
+
 /* Navigation functions */
 
 static void
@@ -624,10 +662,10 @@ menu_increment(int amount) {
 
 static void
 run_cb(void) {
-    printf("run_cb: Starting\n");
+    /* printf("run_cb: Starting\n"); */
     const gd_item* item = list_current[current_selected_item];
     int disc_set = gd_item_disc_total(item->disc);
-    printf("run_cb: disc_set=%d\n", disc_set);
+    /* printf("run_cb: disc_set=%d\n", disc_set); */
 
 #ifndef STANDALONE_BINARY
     int hide_multidisc = sf_multidisc[0];
@@ -635,7 +673,7 @@ run_cb(void) {
     int hide_multidisc = 1;
 #endif
 
-    printf("run_cb: hide_multidisc=%d\n", hide_multidisc);
+    /* printf("run_cb: hide_multidisc=%d\n", hide_multidisc); */
 
     /* Only show multidisc chooser if product code exists */
     if (hide_multidisc && (disc_set > 1) && item->product[0] != '\0') {
@@ -653,18 +691,18 @@ run_cb(void) {
 
         /* Check if multiple discs remain after filtering */
         if (list_multidisc_length() > 1) {
-            printf("run_cb: Showing multidisc popup\n");
+            /* printf("run_cb: Showing multidisc popup\n"); */
             draw_current = DRAW_MULTIDISC;
             cb_multidisc = 1;
-            printf("run_cb: Calling popup_setup\n");
+            /* printf("run_cb: Calling popup_setup\n"); */
             popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
-            printf("run_cb: Multidisc setup complete\n");
+            /* printf("run_cb: Multidisc setup complete\n"); */
             return;
         }
         /* Only 1 disc in this folder, fall through to launch directly */
     }
 
-    printf("run_cb: Launching CB\n");
+    /* printf("run_cb: Launching CB\n"); */
     dreamcast_launch_cb(item);
 }
 
@@ -756,7 +794,7 @@ menu_accept(void) {
 
         /* Check if multiple discs remain after filtering */
         if (list_multidisc_length() > 1) {
-            printf("menu_accept: Showing multidisc popup for disc_set=%d\n", disc_set);
+            /* printf("menu_accept: Showing multidisc popup for disc_set=%d\n", disc_set); */
             cb_multidisc = 0;
             draw_current = DRAW_MULTIDISC;
             popup_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->menu_title_color);
@@ -846,6 +884,85 @@ menu_go_back(void) {
     }
 }
 
+/* Quick-jump: check for Shift+Key and jump to first matching item */
+static void
+handle_keyboard_quickjump(void) {
+    uint8_t mods = INPT_KeyboardModifiers();
+    bool shift_held = (mods & KBD_MOD_LSHIFT) || (mods & KBD_MOD_RSHIFT);
+    if (!shift_held || list_len <= 0) {
+        return;
+    }
+
+    char target_char = 0;
+
+    /* Check A-Z keys */
+    for (uint8_t key = KBD_KEY_A; key <= KBD_KEY_Z; key++) {
+        if (INPT_KeyboardButtonPress(key)) {
+            target_char = 'A' + (key - KBD_KEY_A);
+            break;
+        }
+    }
+
+    /* Check 1-9 keys */
+    if (!target_char) {
+        for (uint8_t key = KBD_KEY_1; key <= KBD_KEY_9; key++) {
+            if (INPT_KeyboardButtonPress(key)) {
+                target_char = '1' + (key - KBD_KEY_1);
+                break;
+            }
+        }
+    }
+
+    /* Check 0 key */
+    if (!target_char && INPT_KeyboardButtonPress(KBD_KEY_0)) {
+        target_char = '0';
+    }
+
+    if (!target_char) {
+        return;
+    }
+
+    /* Find next item starting with target_char (case-insensitive).
+     * Start searching from current position + 1, wrap around if needed. */
+    char target_lower = (target_char >= 'A' && target_char <= 'Z') ? target_char + 32 : target_char;
+    char target_upper = (target_char >= 'a' && target_char <= 'z') ? target_char - 32 : target_char;
+
+    for (int offset = 1; offset <= list_len; offset++) {
+        int i = (current_selected_item + offset) % list_len;
+        const char* name = list_current[i]->name;
+        char first_char;
+
+        /* For folders "[Name]", match against the character inside the bracket */
+        if (name[0] == '[' && name[1] != '\0') {
+            first_char = name[1];
+        } else {
+            first_char = name[0];
+        }
+
+        if (first_char == target_lower || first_char == target_upper) {
+            /* Found a match - move cursor there */
+            current_selected_item = i;
+
+            /* Adjust viewport */
+            if (current_selected_item < cur_theme->items_per_page) {
+                current_starting_index = 0;
+            } else {
+                current_starting_index = current_selected_item - (cur_theme->items_per_page / 2);
+                if (current_starting_index + cur_theme->items_per_page > list_len) {
+                    current_starting_index = list_len - cur_theme->items_per_page;
+                }
+                if (current_starting_index < 0) {
+                    current_starting_index = 0;
+                }
+            }
+
+            navigate_timeout = INPUT_TIMEOUT_INITIAL;
+            return;
+        }
+    }
+    /* No match found - cursor stays where it is */
+}
+
 /* Input handlers */
 
 static void
@@ -892,6 +1009,9 @@ handle_input_ui(enum control input) {
         default:
             break;
     }
+
+    /* Keyboard quick-jump: Shift+Letter/Number */
+    handle_keyboard_quickjump();
 }
 
 /* Main UI functions */
@@ -963,6 +1083,9 @@ FUNCTION(UI_NAME, drawTR) {
     draw_gameart();
     draw_item_details();
     draw_clock();
+#if DEBUG_VMU_SYNC
+    draw_vmu_sync_debug();  /* Enable DEBUG_VMU_SYNC in openmenu_debug.h */
+#endif
 
     /* Then draw popups on top */
     switch (draw_current) {
@@ -987,6 +1110,12 @@ FUNCTION(UI_NAME, drawTR) {
         case DRAW_SAVELOAD: {
             draw_saveload_tr();
         } break;
+        /* COMPACTION_TEST_START */
+        case DRAW_COMPACTION_TEST: {
+            draw_compaction_test_op();
+            draw_compaction_test_tr();
+        } break;
+        /* COMPACTION_TEST_END */
         default:
         case DRAW_UI: {
             /* Game list and artwork already drawn above */
@@ -1022,6 +1151,11 @@ FUNCTION_INPUT(UI_NAME, handle_input) {
         case DRAW_SAVELOAD: {
             handle_input_saveload(input_current);
         } break;
+        /* COMPACTION_TEST_START */
+        case DRAW_COMPACTION_TEST: {
+            handle_input_compaction_test(input_current);
+        } break;
+        /* COMPACTION_TEST_END */
         default:
         case DRAW_UI: {
             handle_input_ui(input_current);

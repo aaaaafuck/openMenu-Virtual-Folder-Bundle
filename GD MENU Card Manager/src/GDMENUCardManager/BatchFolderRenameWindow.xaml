@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:GDMENUCardManager"
         xmlns:conv="clr-namespace:GDMENUCardManager.Converter"
-        Title="Batch Folder Rename" Height="600" Width="500"
+        Title="Batch Folder Move and Rename" Height="600" Width="500"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
     <Window.Resources>

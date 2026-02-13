@@ -61,7 +61,7 @@ bloom_launch(gd_item* disc) {
     fd = fs_open("/cd/BLOOM.BIN", O_RDONLY);
 
     if (fd == -1) {
-        printf("Can't open %s\n", "/cd/BLOOM.BIN");
+        /* printf("Can't open %s\n", "/cd/BLOOM.BIN"); */
         return;
     }
 
@@ -92,7 +92,7 @@ bleem_launch(gd_item* disc) {
     fd = fs_open("/cd/BLEEM.BIN", O_RDONLY);
 
     if (fd == -1) {
-        printf("Can't open %s\n", "/cd/BLEEM.BIN");
+        /* printf("Can't open %s\n", "/cd/BLEEM.BIN"); */
         return;
     }
 
@@ -141,7 +141,8 @@ dreamcast_launch_disc(gd_item* disc) {
 
         bloader_cfg_t* bloader_config = (bloader_cfg_t*)&bloader_data[bloader_size - sizeof(bloader_cfg_t)];
         bloader_config->enable_wide = sf_aspect[0];
-        if (!strncmp("Dreamcast Fishing Controller", maple_enum_type(0, MAPLE_FUNC_CONTROLLER)->info.product_name, 28)) {
+        maple_device_t* cont = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+        if (cont && !strncmp("Dreamcast Fishing Controller", cont->info.product_name, 28)) {
             bloader_config->enable_3d = 0;
         } else {
             bloader_config->enable_3d = sf_bios_3d[0];

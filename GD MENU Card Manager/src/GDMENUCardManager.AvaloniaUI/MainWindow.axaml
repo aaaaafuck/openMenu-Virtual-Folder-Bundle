@@ -73,19 +73,30 @@
         <Grid Grid.Column="0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="1*"/>
             <ColumnDefinition Width="Auto"/>
-
           </Grid.ColumnDefinitions>
 
           <TextBlock Grid.Column="0" VerticalAlignment="Center">SD Drive</TextBlock>
-          <ComboBox Grid.Column="1" Items="{Binding DriveList, Mode=OneWay}" SelectedItem="{Binding SelectedDrive}" ToolTip.Tip="{Binding Path=SelectedDrive.VolumeLabel, Mode=OneWay}" />
-          <Button Grid.Column="2" Width="30" Margin="10 0 0 0" ToolTip.Tip="Refresh drive list" Click="ButtonRefreshDrive_Click">
+          <Button Grid.Column="1" Width="30" Margin="10 0 0 0" Click="ButtonBrowseSdPath_Click" ToolTip.Tip="Browse for custom SD card folder"
+                  IsVisible="{Binding !IsUsingCustomPath}">
+            <Viewbox Width="18" Height="18">
+              <Canvas Width="24" Height="24">
+                <Path Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z" Fill="{DynamicResource ThemeForegroundBrush}" />
+              </Canvas>
+            </Viewbox>
+          </Button>
+          <ComboBox Grid.Column="2" Items="{Binding DriveList, Mode=OneWay}" SelectedItem="{Binding SelectedDrive}" ToolTip.Tip="{Binding Path=SelectedDrive.VolumeLabel, Mode=OneWay}"
+                    IsVisible="{Binding !IsUsingCustomPath}" />
+          <TextBox Grid.Column="2" VerticalContentAlignment="Center" Text="{Binding CustomSdPath, Mode=OneWay}" IsReadOnly="True"
+                   IsVisible="{Binding IsUsingCustomPath}"/>
+          <Button Grid.Column="3" Width="30" Margin="5 0 0 0" ToolTip.Tip="Refresh drive list and clear custom path" Click="ButtonRefreshDrive_Click">
             <ContentControl Content="{StaticResource ViewRefresh}"/>
           </Button>
         </Grid>
 
-        <Grid Grid.Column="1" Margin="40 0 0 0">
+        <Grid Grid.Column="1" Margin="30 0 0 0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="1*"/>
@@ -107,7 +118,7 @@
           </Grid>
         </Grid>
 
-        <Grid Grid.Column="2" Margin="20 0 5 0">
+        <Grid Grid.Column="2" Margin="30 0 0 0">
           <Grid.RowDefinitions>
             <RowDefinition/>
             <RowDefinition/>
@@ -116,7 +127,7 @@
           <RadioButton Grid.Row="1" GroupName="MenuKind" IsThreeState="False" IsChecked="{Binding MenuKindSelected, Mode=TwoWay, Converter={StaticResource EnumToBool}, ConverterParameter={x:Static core:MenuKind.openMenu}}" ToolTip.Tip="Use openMenu">openMenu</RadioButton>
         </Grid>
 
-        <Button Grid.Column="3" Width="30" Margin="40 0 0 0" ToolTip.Tip="About" Click="ButtonAbout_Click">
+        <Button Grid.Column="3" Width="30" Margin="30 0 0 0" ToolTip.Tip="About" Click="ButtonAbout_Click">
           <Viewbox Width="18" Height="18">
             <Canvas Width="24" Height="24">
               <Path Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" Fill="{DynamicResource ThemeForegroundBrush}" />
@@ -136,14 +147,14 @@
               <ColumnDefinition Width="Auto"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Label Margin="0 3 0 0">Search</Label>
-            <TextBox Grid.Column="1" Name="tbFilter" Width="260" MaxLength="256" VerticalContentAlignment="Center" Text="{Binding Filter, Mode=TwoWay}" />
+            <Label VerticalAlignment="Center">Search</Label>
+            <TextBox Grid.Column="1" Name="tbFilter" Width="260" Margin="10 0 0 0" MaxLength="256" VerticalContentAlignment="Center" Text="{Binding Filter, Mode=TwoWay}" />
             <Button Grid.Column="2" Width="30" ToolTip.Tip="Search by title or serial" IsDefault="{Binding Path=IsFocused, ElementName=tbFilter, Mode=OneWay}" Click="ButtonSearch_Click">
               <ContentControl Content="{StaticResource ViewMagnify}" />
             </Button>
           </Grid>
           <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Click="ButtonDiscImageOptions_Click" ToolTip.Tip="Various disc image modification options">Disc Image Options</Button>
-          <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Margin="10 0 10 0" Click="ButtonDatTools_Click"
+          <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Margin="0 0 10 0" Click="ButtonDatTools_Click"
                   IsVisible="{Binding MenuKindSelected, Converter={StaticResource IsOpenMenuMode}}" ToolTip.Tip="Various DAT file maintenance tasks">DAT Tools</Button>
           <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Margin="0 0 10 0" Click="ButtonSort_Click" ToolTip.Tip="Sort list by folder path + title">Sort List</Button>
         </DockPanel>
@@ -291,7 +302,7 @@
 
     <Grid Grid.Row="3" Margin="5 0 5 10" IsEnabled="{Binding !IsBusy, Mode=OneWay}">
 
-      <Grid IsEnabled="{Binding SelectedDrive, Mode=OneWay, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <Grid IsEnabled="{Binding HasSdPath, Mode=OneWay}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="auto"/>
           <ColumnDefinition Width="auto"/>

@@ -34,6 +34,13 @@ namespace GDMENUCardManager.Core.Interface
         /// </summary>
         public ValueTask ShowSerialTranslationDialog(IEnumerable<GdItem> translatedItems);
 
+        /// <summary>
+        /// Shows a dialog asking the user to select their GDEMU type (authentic or clone)
+        /// so that the correct timing values can be written to GDEMU.INI.
+        /// Returns true for authentic, false for clone.
+        /// </summary>
+        public ValueTask<bool> ShowGdemuTypeDialog();
+
         public void ExtractArchive(string archivePath, string extractTo);
         public Dictionary<string, long> GetArchiveFiles(string archivePath);
     }

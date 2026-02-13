@@ -22,6 +22,10 @@ void exit_menu_setup(enum draw_state* state, struct theme_color* _colors, int* t
 void cb_menu_setup(enum draw_state* state, struct theme_color* _colors, int* timeout_ptr, uint32_t title_color);
 void saveload_setup(enum draw_state* state, struct theme_color* _colors, int* timeout_ptr, uint32_t title_color);
 
+/* COMPACTION_TEST_START */
+void compaction_test_setup(enum draw_state* state, struct theme_color* _colors, int* timeout_ptr, uint32_t title_color);
+/* COMPACTION_TEST_END */
+
 void handle_input_menu(enum control input);
 void handle_input_credits(enum control input);
 void handle_input_multidisc(enum control input);
@@ -29,6 +33,10 @@ void handle_input_exit(enum control input);
 void handle_input_codebreaker(enum control input);
 void handle_input_psx_launcher(enum control input);
 void handle_input_saveload(enum control input);
+
+/* COMPACTION_TEST_START */
+void handle_input_compaction_test(enum control input);
+/* COMPACTION_TEST_END */
 
 void draw_menu_op(void);
 void draw_menu_tr(void);
@@ -50,6 +58,11 @@ void draw_psx_launcher_tr(void);
 
 void draw_saveload_op(void);
 void draw_saveload_tr(void);
+
+/* COMPACTION_TEST_START */
+void draw_compaction_test_op(void);
+void draw_compaction_test_tr(void);
+/* COMPACTION_TEST_END */
 
 void set_cur_game_item(const gd_item* id);
 const gd_item* get_cur_game_item();

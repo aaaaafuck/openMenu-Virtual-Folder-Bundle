@@ -47,9 +47,22 @@ namespace GDMENUCardManager
             {
                 _DriveInfo = value;
                 Manager.ItemList.Clear();
-                Manager.sdPath = value?.RootDirectory.ToString();
+                if (value != null)
+                {
+                    // Clear custom path when selecting a drive
+                    if (IsUsingCustomPath)
+                    {
+                        CustomSdPath = null;
+                    }
+                    Manager.sdPath = value.RootDirectory.ToString();
+                }
+                else if (!IsUsingCustomPath)
+                {
+                    Manager.sdPath = null;
+                }
                 Filter = null;
                 RaisePropertyChanged();
+                RaisePropertyChanged(nameof(HasSdPath));
             }
         }
 
@@ -59,6 +72,23 @@ namespace GDMENUCardManager
             get { return _TempFolder; }
             set { _TempFolder = value; RaisePropertyChanged(); }
         }
+
+        private string _CustomSdPath;
+        public string CustomSdPath
+        {
+            get { return _CustomSdPath; }
+            set
+            {
+                _CustomSdPath = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged(nameof(IsUsingCustomPath));
+                RaisePropertyChanged(nameof(HasSdPath));
+            }
+        }
+
+        public bool IsUsingCustomPath => !string.IsNullOrEmpty(CustomSdPath);
+
+        public bool HasSdPath => SelectedDrive != null || IsUsingCustomPath;
 
         private string _TotalFilesLength;
         public string TotalFilesLength
@@ -157,7 +187,15 @@ namespace GDMENUCardManager
 
             this.Opened += async (ss, ee) =>
             {
-                FillDriveList();
+                // If custom path is set, load from it instead of searching for drives
+                if (IsUsingCustomPath)
+                {
+                    await LoadItemsFromCard();
+                }
+                else
+                {
+                    FillDriveList();
+                }
                 // Defer column visibility update until DataGrid is fully loaded
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => UpdateFolderColumnVisibility(), Avalonia.Threading.DispatcherPriority.Loaded);
             };
@@ -187,6 +225,7 @@ namespace GDMENUCardManager
                 TempFolder = tempFolderConfig;
             else
                 TempFolder = Path.GetTempPath();
+
             Title = "GD MENU Card Manager " + Constants.Version;
             
             //showAllDrives = true;
@@ -1257,7 +1296,46 @@ namespace GDMENUCardManager
 
         private void ButtonRefreshDrive_Click(object sender, RoutedEventArgs e)
         {
+            // Clear custom path if set
+            if (IsUsingCustomPath)
+            {
+                CustomSdPath = null;
+                Manager.sdPath = null;
+                Manager.ItemList.Clear();
+            }
             FillDriveList(true);
+        }
+
+        private async void ButtonBrowseSdPath_Click(object sender, RoutedEventArgs e)
+        {
+            var folderDialog = new OpenFolderDialog { Title = "Select SD Card Folder" };
+            var selectedPath = await folderDialog.ShowAsync(this);
+
+            if (!string.IsNullOrEmpty(selectedPath))
+            {
+                // Check if it looks like a GDEMU SD card
+                bool hasGdemuIni = File.Exists(Path.Combine(selectedPath, Constants.MenuConfigTextFile));
+                bool has01Folder = Directory.Exists(Path.Combine(selectedPath, "01"));
+
+                if (!hasGdemuIni && !has01Folder)
+                {
+                    await MessageBoxManager.GetMessageBoxStandardWindow(
+                        "Notice",
+                        "The selected folder does not appear to be a GDEMU SD card.\n\n" +
+                        "No GDEMU.INI file or numbered folders (01, 02, etc.) were found.\n\n" +
+                        "You may proceed, but the folder may not work as expected.",
+                        MessageBox.Avalonia.Enums.ButtonEnum.Ok,
+                        MessageBox.Avalonia.Enums.Icon.Info).ShowDialog(this);
+                }
+
+                // Set the custom path
+                CustomSdPath = selectedPath;
+                Manager.sdPath = selectedPath;
+                SelectedDrive = null; // Clear drive selection
+
+                // Load items from the custom path
+                await LoadItemsFromCard();
+            }
         }
 
         private void FillDriveList(bool isRefreshing = false)
@@ -1280,7 +1358,7 @@ namespace GDMENUCardManager
                 DriveList.Clear();
             }
             //fill drive list and try to find drive with gdemu contents
-            //look for GDEMU.ini file
+            //look for GDEMU.INI file
             foreach (DriveInfo drive in list)
             {
                 try

@@ -51,6 +51,13 @@ namespace GDMENUCardManager
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask<bool> ShowGdemuTypeDialog()
+        {
+            var dialog = new GdemuTypeDialog { Owner = getMainWindow() };
+            dialog.ShowDialog();
+            return new ValueTask<bool>(dialog.IsAuthentic);
+        }
+
         public ValueTask<bool> ShowSpaceWarningDialog(SpaceCheckResult spaceCheck)
         {
             var sb = new StringBuilder();

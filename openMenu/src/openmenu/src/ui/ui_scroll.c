@@ -17,6 +17,7 @@
 #include <backend/gd_item.h>
 #include <backend/gd_list.h>
 #include <openmenu_settings.h>
+#include "dc/input.h"
 #include "texture/txr_manager.h"
 #include "ui/draw_prototypes.h"
 #include "ui/font_prototypes.h"
@@ -26,6 +27,15 @@
 #include "ui/ui_scroll.h"
 
 #define UNUSED __attribute__((unused))
+
+/* Keyboard scancodes for quick-jump (from KOS keyboard.h) */
+#define KBD_KEY_A      0x04
+#define KBD_KEY_Z      0x1d
+#define KBD_KEY_1      0x1e
+#define KBD_KEY_9      0x26
+#define KBD_KEY_0      0x27
+#define KBD_MOD_LSHIFT 0x02
+#define KBD_MOD_RSHIFT 0x20
 
 static image txr_bg_left, txr_bg_right;
 
@@ -607,6 +617,78 @@ menu_exit(void) {
     exit_menu_setup(&draw_current, &cur_theme->colors, &navigate_timeout, cur_theme->colors.text_color, 0 /* not a folder */);
 }
 
+/* Quick-jump: check for Shift+Key and jump to first matching item */
+static void
+handle_keyboard_quickjump(void) {
+    uint8_t mods = INPT_KeyboardModifiers();
+    bool shift_held = (mods & KBD_MOD_LSHIFT) || (mods & KBD_MOD_RSHIFT);
+    if (!shift_held || list_len <= 0) {
+        return;
+    }
+
+    char target_char = 0;
+
+    /* Check A-Z keys */
+    for (uint8_t key = KBD_KEY_A; key <= KBD_KEY_Z; key++) {
+        if (INPT_KeyboardButtonPress(key)) {
+            target_char = 'A' + (key - KBD_KEY_A);
+            break;
+        }
+    }
+
+    /* Check 1-9 keys */
+    if (!target_char) {
+        for (uint8_t key = KBD_KEY_1; key <= KBD_KEY_9; key++) {
+            if (INPT_KeyboardButtonPress(key)) {
+                target_char = '1' + (key - KBD_KEY_1);
+                break;
+            }
+        }
+    }
+
+    /* Check 0 key */
+    if (!target_char && INPT_KeyboardButtonPress(KBD_KEY_0)) {
+        target_char = '0';
+    }
+
+    if (!target_char) {
+        return;
+    }
+
+    /* Find next item starting with target_char (case-insensitive).
+     * Start searching from current position + 1, wrap around if needed. */
+    char target_lower = (target_char >= 'A' && target_char <= 'Z') ? target_char + 32 : target_char;
+    char target_upper = (target_char >= 'a' && target_char <= 'z') ? target_char - 32 : target_char;
+
+    for (int offset = 1; offset <= list_len; offset++) {
+        int i = (current_selected_item + offset) % list_len;
+        const char* name = list_current[i]->name;
+        char first_char = name[0];
+
+        if (first_char == target_lower || first_char == target_upper) {
+            /* Found a match - move cursor there */
+            current_selected_item = i;
+
+            /* Adjust viewport */
+            if (current_selected_item < cur_theme->items_per_page) {
+                current_starting_index = 0;
+            } else {
+                current_starting_index = current_selected_item - (cur_theme->items_per_page / 2);
+                if (current_starting_index + cur_theme->items_per_page > list_len) {
+                    current_starting_index = list_len - cur_theme->items_per_page;
+                }
+                if (current_starting_index < 0) {
+                    current_starting_index = 0;
+                }
+            }
+
+            navigate_timeout = INPUT_TIMEOUT_INITIAL;
+            return;
+        }
+    }
+    /* No match found - cursor stays where it is */
+}
+
 FUNCTION(UI_NAME, init) {
     texman_clear();
     /* @Note: these exist but do we really care? Naturally this will happen
@@ -639,8 +721,8 @@ FUNCTION(UI_NAME, init) {
 
     font_bmp_init(cur_theme->font, 8, 16);
 
-    printf("Texture scratch free: %d/%d KB (%d/%d bytes)\n", texman_get_space_available() / 1024,
-           TEXMAN_BUFFER_SIZE / 1024, texman_get_space_available(), TEXMAN_BUFFER_SIZE);
+    /* printf("Texture scratch free: %d/%d KB (%d/%d bytes)\n", texman_get_space_available() / 1024,
+           TEXMAN_BUFFER_SIZE / 1024, texman_get_space_available(), TEXMAN_BUFFER_SIZE); */
 }
 
 static void
@@ -676,6 +758,9 @@ handle_input_ui(enum control input) {
         case NONE:
         default: break;
     }
+
+    /* Keyboard quick-jump: Shift+Letter/Number */
+    handle_keyboard_quickjump();
 }
 
 theme_scroll*
@@ -724,6 +809,11 @@ FUNCTION_INPUT(UI_NAME, handle_input) {
         case DRAW_SAVELOAD: {
             handle_input_saveload(input_current);
         } break;
+        /* COMPACTION_TEST_START */
+        case DRAW_COMPACTION_TEST: {
+            handle_input_compaction_test(input_current);
+        } break;
+        /* COMPACTION_TEST_END */
         default:
         case DRAW_UI: {
             handle_input_ui(input_current);
@@ -764,6 +854,11 @@ FUNCTION(UI_NAME, drawOP) {
             /* Save/Load popup on top */
             draw_saveload_op();
         } break;
+        /* COMPACTION_TEST_START */
+        case DRAW_COMPACTION_TEST: {
+            draw_compaction_test_op();
+        } break;
+        /* COMPACTION_TEST_END */
         default:
         case DRAW_UI: {
             /* always drawn */
@@ -804,6 +899,11 @@ FUNCTION(UI_NAME, drawTR) {
         case DRAW_SAVELOAD: {
             draw_saveload_tr();
         } break;
+        /* COMPACTION_TEST_START */
+        case DRAW_COMPACTION_TEST: {
+            draw_compaction_test_tr();
+        } break;
+        /* COMPACTION_TEST_END */
         default:
         case DRAW_UI: {
             /* always drawn */

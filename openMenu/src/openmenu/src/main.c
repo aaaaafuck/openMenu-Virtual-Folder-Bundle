@@ -22,15 +22,95 @@
 
 #include <backend/db_list.h>
 #include <backend/gd_list.h>
+#include <openmenu_debug.h>
 #include <openmenu_savefile.h>
 #include <openmenu_settings.h>
 #include "backend/gdemu_sdk.h"
 #include "ui/common.h"
 #include "ui/dc/input.h"
+#include "ui/dc/pvr_texture.h"
 #include "ui/draw_prototypes.h"
 #include "ui/ui_common.h"
 #include "ui/ui_menu_credits.h"
 #include "vm2/vm2_api.h"
+
+#if DEBUG_MAPLE_FLASH
+/* Flash the screen a solid color for debugging.
+ * Uses vid_clear which works before PVR init. */
+static void
+debug_flash(uint8_t r, uint8_t g, uint8_t b) {
+    /* Pack RGB into the format vid_clear expects */
+    vid_clear(r, g, b);
+    thd_sleep(300);  /* 300ms visible flash */
+}
+#define DFLASH(r,g,b) debug_flash(r,g,b)
+#else
+#define DFLASH(r,g,b) ((void)0)
+#endif
+
+/* Display a simple loading screen.
+ * Called after PVR init but before main initialization.
+ * Loads and displays FONT/LOADING.PVR centered on screen. */
+static void
+show_loading_screen(void) {
+    uint32_t width, height, format;
+    pvr_ptr_t texture;
+
+    /* Load the loading screen texture */
+    texture = load_pvr("FONT/LOADING.PVR", &width, &height, &format);
+    if (!texture) {
+        /* Failed to load - just skip the loading screen */
+        return;
+    }
+
+    /* Calculate centered position (640x480 screen, 128x128 image) */
+    const float x1 = (640.0f - (float)width) / 2.0f;
+    const float y1 = (480.0f - (float)height) / 2.0f;
+    const float x2 = x1 + (float)width;
+    const float y2 = y1 + (float)height;
+    const float z = 1.0f;
+
+    /* Render one frame with the loading texture */
+    pvr_wait_ready();
+    pvr_scene_begin();
+
+    pvr_list_begin(PVR_LIST_OP_POLY);
+
+    /* Set up textured polygon */
+    pvr_poly_cxt_t cxt;
+    pvr_poly_hdr_t hdr;
+    pvr_poly_cxt_txr(&cxt, PVR_LIST_OP_POLY, format, width, height, texture, PVR_FILTER_BILINEAR);
+    pvr_poly_compile(&hdr, &cxt);
+    pvr_prim(&hdr, sizeof(hdr));
+
+    /* Draw quad vertices (triangle strip order) */
+    pvr_vertex_t vert;
+
+    vert.flags = PVR_CMD_VERTEX;
+    vert.x = x1; vert.y = y1; vert.z = z;
+    vert.u = 0.0f; vert.v = 0.0f;
+    vert.argb = 0xFFFFFFFF; vert.oargb = 0;
+    pvr_prim(&vert, sizeof(vert));
+
+    vert.x = x2; vert.y = y1;
+    vert.u = 1.0f; vert.v = 0.0f;
+    pvr_prim(&vert, sizeof(vert));
+
+    vert.x = x1; vert.y = y2;
+    vert.u = 0.0f; vert.v = 1.0f;
+    pvr_prim(&vert, sizeof(vert));
+
+    vert.flags = PVR_CMD_VERTEX_EOL;
+    vert.x = x2; vert.y = y2;
+    vert.u = 1.0f; vert.v = 1.0f;
+    pvr_prim(&vert, sizeof(vert));
+
+    pvr_list_finish();
+    pvr_scene_finish();
+
+    /* Free the texture - we don't need it after this */
+    pvr_mem_free(texture);
+}
 
 /* UI Collection */
 #include "ui/ui_grid.h"
@@ -45,7 +125,7 @@
 #include "bloader.h"
 #include "texture/txr_manager.h"
 
-/* VM2/VMUPro/USB4Maple device tracking */
+/* VM2/VMUPro/USB4Maple/Pico2Maple device tracking */
 #define VM2_MAX_DEVICES 8
 maple_device_t* vm2_devices[VM2_MAX_DEVICES] = {NULL};
 int vm2_device_count = 0;
@@ -107,7 +187,9 @@ vm2_rescan(void) {
     vm2_device_count = 0;
     for (int i = 0; i < 8; i++) {
         maple_device_t* vmu = maple_enum_type(i, MAPLE_FUNC_MEMCARD);
-        if (vmu && check_vm2_present(vmu)) {
+        /* Check both non-NULL and valid to avoid sending commands to
+         * stale/uninitialized device structures */
+        if (vmu && vmu->valid && check_vm2_present(vmu)) {
             vm2_devices[vm2_device_count++] = vmu;
         }
     }
@@ -225,7 +307,7 @@ processInput(void) {
         return;
     }
 
-    if (cont) {
+    if (cont && cont->valid) {
         /* Controller found - also works with the controller portion of a light gun */
         state = (cont_state_t*)maple_dev_status(cont);
         buttons = state->buttons;
@@ -254,7 +336,7 @@ processInput(void) {
         }
     }
 
-    if (kbd) {
+    if (kbd && kbd->valid) {
         /* Keyboard found - copy list of pressed key scancodes from cond.keys */
         kbd_state = (kbd_state_t*)maple_dev_status(kbd);
         _input.kbd_modifiers = kbd_state->shift_keys;
@@ -418,8 +500,25 @@ main(int argc, char* argv[]) {
     // gdemu_set_img_num(1);
     // thd_sleep(500);
 
-    /* Scan for VM2/VMUPro/USB4Maple devices and send initial ID */
+    /* DEBUG: RED = before maple_wait_scan */
+    DFLASH(255, 0, 0);
+
+    /* Wait for maple bus scan to complete before any device enumeration.
+     * This ensures device structures are properly initialized. */
+    maple_wait_scan();
+
+    /* DEBUG: GREEN = after maple_wait_scan */
+    DFLASH(0, 255, 0);
+
+    /* DEBUG: BLUE = before vm2_rescan */
+    DFLASH(0, 0, 255);
+
+    /* Scan for VM2/VMUPro/USB4Maple/Pico2Maple devices and send initial ID */
     vm2_rescan();
+
+    /* DEBUG: YELLOW = after vm2_rescan */
+    DFLASH(255, 255, 0);
+
     for (int i = 0; i < vm2_device_count; i++) {
         maple_device_t* vmu = vm2_devices[i];
         int port = vmu->port;
@@ -433,15 +532,28 @@ main(int argc, char* argv[]) {
         }
     }
 
-    fflush(stdout);
-    setbuf(stdout, NULL);
+    /* fflush(stdout); */
+    /* setbuf(stdout, NULL); */
+
+    /* DEBUG: CYAN = before init_gfx_pvr */
+    DFLASH(0, 255, 255);
+
     init_gfx_pvr();
 
+    /* Show loading screen while init() runs (which includes a 1s delay) */
+    show_loading_screen();
+
+    /* DEBUG: MAGENTA = before init/savefile_init */
+    DFLASH(255, 0, 255);
+
     if (init()) {
-        puts("Init error.");
+        /* puts("Init error."); */
         savefile_close();
         return 1;
     }
+
+    /* DEBUG: WHITE = init complete, entering main loop */
+    DFLASH(255, 255, 255);
 
     for (;;) {
         z_reset();
@@ -463,7 +575,8 @@ exit_to_bios_ex(int do_mount, int do_send_id) {
     bloader_cfg_t* bloader_config = (bloader_cfg_t*)&bloader_data[bloader_size - sizeof(bloader_cfg_t)];
 
     bloader_config->enable_wide = sf_aspect[0];
-    if (!strncmp("Dreamcast Fishing Controller", maple_enum_type(0, MAPLE_FUNC_CONTROLLER)->info.product_name, 28)) {
+    maple_device_t* cont = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+    if (cont && !strncmp("Dreamcast Fishing Controller", cont->info.product_name, 28)) {
         bloader_config->enable_3d = 0;
     } else {
         bloader_config->enable_3d = sf_bios_3d[0];
@@ -482,7 +595,7 @@ exit_to_bios_ex(int do_mount, int do_send_id) {
             wait_cd_ready((gd_item*)item);
         }
 
-        /* Send game ID to VM2/VMUPro/USB4Maple if present */
+        /* Send game ID to VM2/VMUPro/USB4Maple/Pico2Maple if present */
         if (do_send_id) {
             vm2_rescan();  /* Rescan to detect hot-swapped devices */
             vm2_send_id_to_all(item->product, item->name);

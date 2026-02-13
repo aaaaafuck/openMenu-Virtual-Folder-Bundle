@@ -189,3 +189,8 @@ INPT_KeyboardButtonPress(uint8_t kbtn) {
     }
     return true;
 }
+
+uint8_t
+INPT_KeyboardModifiers(void) {
+    return _current.kbd_modifiers;
+}

@@ -37,6 +37,9 @@ xcopy /E /I /Y src\GDMENUCardManager.Core\tools "%OUTPUT_DIR%\tools\"
 REM Copy redump2cdi tool for CUE/BIN conversion
 copy /Y redump2cdi\windows-x86_64-msvc\redump2cdi.exe "%OUTPUT_DIR%\tools\"
 
+REM Copy libchdr native library for CHD support
+if exist src\GDMENUCardManager.Core\runtimes\win-x64\native\libchdr.dll copy /Y src\GDMENUCardManager.Core\runtimes\win-x64\native\libchdr.dll "%OUTPUT_DIR%\"
+
 REM Copy LICENSE and README
 copy /Y LICENSE "%OUTPUT_DIR%\"
 copy /Y README.md "%OUTPUT_DIR%\"

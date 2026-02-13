@@ -52,6 +52,13 @@ namespace GDMENUCardManager
             }
         }
 
+        public async ValueTask<bool> ShowGdemuTypeDialog()
+        {
+            var dialog = new GdemuTypeDialog();
+            await dialog.ShowDialog(getMainWindow());
+            return dialog.IsAuthentic;
+        }
+
         public async ValueTask<bool> ShowSpaceWarningDialog(SpaceCheckResult spaceCheck)
         {
             var sb = new StringBuilder();
