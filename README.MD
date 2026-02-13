@@ -116,7 +116,7 @@ The latest version of **openMenu Virtual Folder Bundle** is [1.3-ateam](https://
     - Margins and vertical centering of several UI elements fixed (see [Issue 90](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/90)).
     - Info window height fixed, was too tall (see [Issue 93](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/93)).
     - Ellipses after progress bar messages no longer have an extra space before it (see [Issue 81](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/81)).
-    - New optimized auto-creation of GDEMU.INI file if none exists (see [Issue 95](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/95)).
+    - New optimized auto-creation of `GDEMU.INI` file if none exists (see [Issue 95](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/95)).
 - **Version 1.2-ateam (2026-02-05)**
   - **openMenu**
     - New VMU save/load functionality with live detection of VMU devices upon loading the save manager, plus ability to upgrade old save files (see [Issue 60](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/60)).
