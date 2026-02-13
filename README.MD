@@ -286,7 +286,7 @@ GD MENU Card Manager provides a streamlined artwork management system for adding
 
 To assign artwork to a game:
 
-1. In the games list, click the **Assign** or **Manage** button under the **Art** column in the row of the game to edit.
+1. In the Games List table, click the **Assign** or **Manage** button under the **Art** column in the row of the game to edit.
    - The button is labeled **Assign** if no artwork is presently tied to the Serial ID, and **Manage** if there is.
 2. The Artwork window displays the game's Serial ID and current artwork (if any).
 3. Click **Browse for Image** to select an image file (supported formats: PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, TGA).
@@ -365,7 +365,7 @@ If needed, click **Refresh Drive List** to rescan available drives after inserti
 
 #### Understanding the Interface
 
-The games list displays all disc images currently on the SD card. Each column serves a specific purpose:
+The Games List table displays all disc images currently on the SD card. Each column serves a specific purpose:
 
 | Column | Description |
 |--------|-------------|
@@ -494,7 +494,7 @@ Click **Sort List** to alphabetically sort all disc images. When in openMenu mod
 
 #### Undo and Redo
 
-The **Undo** and **Redo** buttons at the bottom left of the main window allow users to quickly reverse or reapply changes to the games list. The system tracks up to 10 levels of history and supports all operations including:
+The **Undo** and **Redo** buttons at the bottom left of the main window allow users to quickly reverse or reapply changes to the Games List table. The system tracks up to 10 levels of history and supports all operations including:
 
 - Adding and removing games
 - Editing titles, serials, folders, disc numbers, and types
