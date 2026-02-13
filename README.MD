@@ -529,13 +529,12 @@ Users can choose to forego this operation by unchecking the **File/Folder Lock C
 **Save Operations**
 
 When the save proceeds, it:
-- Renumbers and renames folders as needed.
-- Copies pending game files to the SD card.
-- Generates `OPENMENU.INI` or `GDEMU.INI` configuration files, including a virtual folder structure where applicable.
+- Renumbers and renames SD card folders as needed.
+- Copies pending disc images to the SD card.
+- Updates `BOX.DAT` and `ICON.DAT` if the session contained any artwork assignment changes.
+- Generates openMenu configuration, including a virtual folder structure where applicable.
 - Copies menu disc image files to folder `01`.
-- Copies theme files to `menu_data` folder.
 - Generates `DISCLIST.TXT` and `DISCLIST.XLSX` containing a list of all disc titles.
-- Writes artwork and metadata DAT files.
 
 A "Done!" message confirms successful completion.
 
