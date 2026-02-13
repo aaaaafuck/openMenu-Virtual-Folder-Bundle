@@ -270,7 +270,7 @@ The upgrade/migration process is very simple for:
 
 Regardless of scenario, users follow these steps:
 
-1. Download the [latest release package](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/releases) for the appropriate platform (e.g., Windows, Linux).
+1. Download the [latest release package](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/releases) for the appropriate platform (Windows, Linux, macOS).
 2. Restore personal DATs if applicable (see the [Restoring a New User's Personal DAT Files](#restoring-a-new-users-personal-dat-files) section).
 3. Insert GDEMU SD card into computer.
 4. Launch GD MENU Card Manager.
@@ -346,7 +346,7 @@ Note that this restoration process is also applicable to users upgrading from a 
 
 A collection of Dreamcast cover art maintained by [RazorX](https://x.com/RazorX2017) is available for download:
 
-**[Dreamcast Cover Art Repository](https://mega.nz/folder/td8wVDDZ#2R7lKrrF52MVKNDobxW7LQ)**
+[Dreamcast Cover Art Repository](https://mega.nz/folder/td8wVDDZ#2R7lKrrF52MVKNDobxW7LQ)
 
 This collection contains high-quality cover images that can be used with the artwork assignment feature.
 
