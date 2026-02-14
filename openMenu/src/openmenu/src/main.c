@@ -6,6 +6,7 @@
  * -----
  * Copyright (c) 2019 Hayden Kowalchuk
  */
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -410,7 +411,13 @@ translate_input(void) {
 
     /* Keyboard support - skip if no keys pressed */
     if (!INPT_KeyboardNone()) {
-        /* Arrow keys → D-Pad */
+        /* Check if Shift is held — if so, skip letter/number button mappings
+         * so the UI quick-jump feature (Shift+Letter/Number) works without
+         * also triggering the action mapped to that key. */
+        uint8_t mods = INPT_KeyboardModifiers();
+        bool shift_held = (mods & KBD_MOD_LSHIFT) || (mods & KBD_MOD_RSHIFT);
+
+        /* Arrow keys → D-Pad (always active, even with Shift) */
         if (INPT_KeyboardButton(KBD_KEY_LEFT)) {
             return LEFT;
         }
@@ -424,35 +431,22 @@ translate_input(void) {
             return DOWN;
         }
 
-        /* Z or Space → A button (edge-detected) */
-        if (INPT_KeyboardButtonPress(KBD_KEY_Z) || INPT_KeyboardButtonPress(KBD_KEY_SPACE)) {
-            return A;
-        }
-        /* X or Escape → B button (edge-detected) */
-        if (INPT_KeyboardButtonPress(KBD_KEY_X) || INPT_KeyboardButtonPress(KBD_KEY_ESCAPE)) {
-            return B;
-        }
-        /* A → X button (hold-detected for grid artwork zoom) */
-        if (INPT_KeyboardButton(KBD_KEY_A)) {
-            return X;
-        }
-        /* S → Y button (edge-detected) */
-        if (INPT_KeyboardButtonPress(KBD_KEY_S)) {
-            return Y;
-        }
-        /* Enter → Start (edge-detected) */
-        if (INPT_KeyboardButtonPress(KBD_KEY_ENTER)) {
-            return START;
+        if (!shift_held) {
+            /* Letter keys → button mappings (disabled when Shift held for quick-jump) */
+            if (INPT_KeyboardButtonPress(KBD_KEY_Z)) { return A; }
+            if (INPT_KeyboardButtonPress(KBD_KEY_X)) { return B; }
+            if (INPT_KeyboardButton(KBD_KEY_A))      { return X; }
+            if (INPT_KeyboardButtonPress(KBD_KEY_S)) { return Y; }
+            if (INPT_KeyboardButton(KBD_KEY_Q))      { return TRIG_L; }
+            if (INPT_KeyboardButton(KBD_KEY_W))      { return TRIG_R; }
         }
 
-        /* Q or Page Up → Left Trigger */
-        if (INPT_KeyboardButton(KBD_KEY_Q) || INPT_KeyboardButton(KBD_KEY_PGUP)) {
-            return TRIG_L;
-        }
-        /* W or Page Down → Right Trigger */
-        if (INPT_KeyboardButton(KBD_KEY_W) || INPT_KeyboardButton(KBD_KEY_PGDOWN)) {
-            return TRIG_R;
-        }
+        /* Non-letter keys → button mappings (always active, not quick-jump targets) */
+        if (INPT_KeyboardButtonPress(KBD_KEY_SPACE))  { return A; }
+        if (INPT_KeyboardButtonPress(KBD_KEY_ESCAPE)) { return B; }
+        if (INPT_KeyboardButtonPress(KBD_KEY_ENTER))  { return START; }
+        if (INPT_KeyboardButton(KBD_KEY_PGUP))        { return TRIG_L; }
+        if (INPT_KeyboardButton(KBD_KEY_PGDOWN))      { return TRIG_R; }
     }
 
     return NONE;

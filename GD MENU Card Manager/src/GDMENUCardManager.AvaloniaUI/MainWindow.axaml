@@ -29,11 +29,6 @@
           <Path Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z" Fill="{DynamicResource ThemeForegroundBrush}" />
         </Canvas>
       </Viewbox>
-      <Viewbox x:Key="ViewRefresh" Width="18" Height="18">
-        <Canvas Width="24" Height="24">
-          <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="{DynamicResource ThemeForegroundBrush}" />
-        </Canvas>
-      </Viewbox>
       <Viewbox x:Key="ViewAdd" Width="24" Height="24">
         <Canvas Width="24" Height="24">
           <Path Fill="{DynamicResource ThemeForegroundBrush}" Data="M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M13,7H11V11H7V13H11V17H13V13H17V11H13V7Z" />
@@ -47,6 +42,11 @@
       <Viewbox x:Key="ViewMagnify" Width="20" Height="20">
         <Canvas Width="24" Height="24">
           <Path Fill="Black" Data="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z" />
+        </Canvas>
+      </Viewbox>
+      <Viewbox x:Key="ViewFilter" Width="20" Height="20">
+        <Canvas Width="24" Height="24">
+          <Path Fill="{DynamicResource ThemeForegroundBrush}" Data="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3H19C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14,12Z" />
         </Canvas>
       </Viewbox>
     </ResourceDictionary>
@@ -64,70 +64,78 @@
     <HeaderedContentControl Grid.Row="1" Header="Settings" Margin="10" IsEnabled="{Binding !IsBusy, Mode=OneWay}">
       <Grid>
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="1*"/>
-          <ColumnDefinition Width="2*"/>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <Grid Grid.Column="0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
 
           <TextBlock Grid.Column="0" VerticalAlignment="Center">SD Drive</TextBlock>
-          <Button Grid.Column="1" Width="30" Margin="10 0 0 0" Click="ButtonBrowseSdPath_Click" ToolTip.Tip="Browse for custom SD card folder"
-                  IsVisible="{Binding !IsUsingCustomPath}">
+          <Button Grid.Column="1" Width="30" Margin="10 0 0 0" Click="ButtonBrowseSdPath_Click" ToolTip.Tip="Browse for custom SD card folder">
             <Viewbox Width="18" Height="18">
               <Canvas Width="24" Height="24">
                 <Path Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z" Fill="{DynamicResource ThemeForegroundBrush}" />
               </Canvas>
             </Viewbox>
           </Button>
-          <ComboBox Grid.Column="2" Items="{Binding DriveList, Mode=OneWay}" SelectedItem="{Binding SelectedDrive}" ToolTip.Tip="{Binding Path=SelectedDrive.VolumeLabel, Mode=OneWay}"
+          <ComboBox Grid.Column="2" Width="150" Items="{Binding DriveList, Mode=OneWay}" SelectedItem="{Binding SelectedDrive}" ToolTip.Tip="{Binding Path=SelectedDrive.VolumeLabel, Mode=OneWay}"
                     IsVisible="{Binding !IsUsingCustomPath}" />
-          <TextBox Grid.Column="2" VerticalContentAlignment="Center" Text="{Binding CustomSdPath, Mode=OneWay}" IsReadOnly="True"
+          <TextBox Grid.Column="2" Width="150" VerticalContentAlignment="Center" Text="{Binding CustomSdPath, Mode=OneWay}" IsReadOnly="True"
                    IsVisible="{Binding IsUsingCustomPath}"/>
-          <Button Grid.Column="3" Width="30" Margin="5 0 0 0" ToolTip.Tip="Refresh drive list and clear custom path" Click="ButtonRefreshDrive_Click">
-            <ContentControl Content="{StaticResource ViewRefresh}"/>
+          <Button Grid.Column="3" Width="30" ToolTip.Tip="Refresh drive list and clear custom path" Click="ButtonRefreshDrive_Click">
+            <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24"><Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="{DynamicResource ThemeForegroundBrush}" /></Canvas></Viewbox>
           </Button>
         </Grid>
 
         <Grid Grid.Column="1" Margin="30 0 0 0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
 
-          <TextBlock Grid.Column="0" VerticalAlignment="Center">Temporary Folder</TextBlock>
+          <TextBlock Grid.Column="0" VerticalAlignment="Center">Temp. Folder</TextBlock>
 
           <Grid Grid.Column="1" Margin="10 0 0 0">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto"/>
-              <ColumnDefinition Width="1*"/>
+              <ColumnDefinition Width="Auto"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Button Width="30" Click="ButtonFolder_Click" ToolTip.Tip="Select temporary folder">
               <ContentControl Content="{StaticResource ViewOpenFolder}"/>
             </Button>
-            <TextBox Grid.Column="1" Watermark="Inform temporary folder" VerticalContentAlignment="Center" Text="{Binding TempFolder}"/>
-            <Button Grid.Column="2" Margin="5 0 0 0" Padding="8 2" Click="ButtonResetTempFolder_Click" ToolTip.Tip="Reset to system default">Reset</Button>
+            <TextBox Grid.Column="1" Width="200" Watermark="Inform temporary folder" VerticalContentAlignment="Center" Text="{Binding TempFolder}" IsReadOnly="True"/>
+            <Button Grid.Column="2" Width="30" Click="ButtonResetTempFolder_Click" ToolTip.Tip="Reset to system default">
+              <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24"><Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="{DynamicResource ThemeForegroundBrush}" /></Canvas></Viewbox>
+            </Button>
           </Grid>
         </Grid>
 
         <Grid Grid.Column="2" Margin="30 0 0 0">
-          <Grid.RowDefinitions>
-            <RowDefinition/>
-            <RowDefinition/>
-          </Grid.RowDefinitions>
-          <RadioButton Grid.Row="0" GroupName="MenuKind" IsThreeState="False" IsChecked="{Binding MenuKindSelected, Mode=TwoWay, Converter={StaticResource EnumToBool}, ConverterParameter={x:Static core:MenuKind.gdMenu}}" ToolTip.Tip="Use gdMenu">gdMenu</RadioButton>
-          <RadioButton Grid.Row="1" GroupName="MenuKind" IsThreeState="False" IsChecked="{Binding MenuKindSelected, Mode=TwoWay, Converter={StaticResource EnumToBool}, ConverterParameter={x:Static core:MenuKind.openMenu}}" ToolTip.Tip="Use openMenu">openMenu</RadioButton>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" VerticalAlignment="Center">Menu Type</TextBlock>
+          <Grid Grid.Column="1" Margin="10 0 0 0">
+            <Grid.RowDefinitions>
+              <RowDefinition/>
+              <RowDefinition/>
+            </Grid.RowDefinitions>
+            <RadioButton Grid.Row="0" GroupName="MenuKind" IsThreeState="False" IsChecked="{Binding MenuKindSelected, Mode=TwoWay, Converter={StaticResource EnumToBool}, ConverterParameter={x:Static core:MenuKind.gdMenu}}" ToolTip.Tip="Use gdMenu">gdMenu</RadioButton>
+            <RadioButton Grid.Row="1" GroupName="MenuKind" IsThreeState="False" IsChecked="{Binding MenuKindSelected, Mode=TwoWay, Converter={StaticResource EnumToBool}, ConverterParameter={x:Static core:MenuKind.openMenu}}" ToolTip.Tip="Use openMenu">openMenu</RadioButton>
+          </Grid>
         </Grid>
 
-        <Button Grid.Column="3" Width="30" Margin="30 0 0 0" ToolTip.Tip="About" Click="ButtonAbout_Click">
+        <Button Grid.Column="3" Width="30" Margin="30 0 0 0" HorizontalAlignment="Right" ToolTip.Tip="About" Click="ButtonAbout_Click">
           <Viewbox Width="18" Height="18">
             <Canvas Width="24" Height="24">
               <Path Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" Fill="{DynamicResource ThemeForegroundBrush}" />
@@ -141,22 +149,32 @@
     <HeaderedContentControl Grid.Row="2" Margin="10 0 10 10" Header="{Binding Path=TotalFilesLength, Mode=OneWay, StringFormat='Games List [{0}]'}">
       <DockPanel>
         <DockPanel DockPanel.Dock="Top" Margin="0 5">
-          <Grid Width="350" HorizontalAlignment="Left">
+          <Grid HorizontalAlignment="Left">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto"/>
               <ColumnDefinition Width="Auto"/>
               <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Label VerticalAlignment="Center">Search</Label>
-            <TextBox Grid.Column="1" Name="tbFilter" Width="260" Margin="10 0 0 0" MaxLength="256" VerticalContentAlignment="Center" Text="{Binding Filter, Mode=TwoWay}" />
-            <Button Grid.Column="2" Width="30" ToolTip.Tip="Search by title or serial" IsDefault="{Binding Path=IsFocused, ElementName=tbFilter, Mode=OneWay}" Click="ButtonSearch_Click">
+            <Label VerticalAlignment="Center">Search/Filter</Label>
+            <TextBox Grid.Column="1" Name="tbFilter" Width="200" Margin="10 0 0 0" MaxLength="256" VerticalContentAlignment="Center" Text="{Binding Filter, Mode=TwoWay}" />
+            <Button Grid.Column="2" Width="30" ToolTip.Tip="Search by title or serial (navigate to next match)" IsDefault="{Binding Path=IsFocused, ElementName=tbFilter, Mode=OneWay}" Click="ButtonSearch_Click">
               <ContentControl Content="{StaticResource ViewMagnify}" />
+            </Button>
+            <Button Grid.Column="3" Width="30" ToolTip.Tip="Filter by title or serial" Click="ButtonFilter_Click">
+              <ContentControl Content="{StaticResource ViewFilter}" />
+            </Button>
+            <Button Grid.Column="4" Width="30" ToolTip.Tip="Clear filter and show all items" Click="ButtonFilterReset_Click"
+                    IsEnabled="{Binding IsFilterActive}">
+              <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24"><Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="{DynamicResource ThemeForegroundBrush}" /></Canvas></Viewbox>
             </Button>
           </Grid>
           <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Click="ButtonDiscImageOptions_Click" ToolTip.Tip="Various disc image modification options">Disc Image Options</Button>
           <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Margin="0 0 10 0" Click="ButtonDatTools_Click"
                   IsVisible="{Binding MenuKindSelected, Converter={StaticResource IsOpenMenuMode}}" ToolTip.Tip="Various DAT file maintenance tasks">DAT Tools</Button>
-          <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Margin="0 0 10 0" Click="ButtonSort_Click" ToolTip.Tip="Sort list by folder path + title">Sort List</Button>
+          <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="10 5" Margin="0 0 10 0" Click="ButtonSort_Click" ToolTip.Tip="Sort list by folder path + title"
+                  IsEnabled="{Binding !IsFilterActive}">Sort List</Button>
         </DockPanel>
         
         <DataGrid Name="dg1" Items="{Binding Manager.ItemList, Mode=OneTime}" IsEnabled="{Binding Path=!IsBusy, Mode=OneWay}" AutoGenerateColumns="False" CanUserResizeColumns="False" CanUserSortColumns="False" CanUserReorderColumns="False" KeyDown="GridOnKeyDown" BeginningEdit="DataGrid_BeginningEdit" CellEditEnding="DataGrid_CellEditEnding" SelectionChanged="DataGrid_SelectionChanged" RowBackground="{DynamicResource ThemeBackgroundBrush}" AlternatingRowBackground="{DynamicResource ThemeBackgroundBrush}" GridLinesVisibility="All" BorderBrush="Black" BorderThickness="1" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
@@ -318,11 +336,11 @@
           <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
 
-        <Button Grid.Column="0" Width="50" Margin="10 0" ToolTip.Tip="Add game(s)" Click="ButtonAddGames_Click" Content="{StaticResource ViewAdd}"/>
+        <Button Grid.Column="0" Width="50" Margin="10 0" ToolTip.Tip="Add game(s)" Click="ButtonAddGames_Click" Content="{StaticResource ViewAdd}" IsEnabled="{Binding !IsFilterActive}"/>
         <Button Grid.Column="1" Width="50" Margin="0 0 10 0" ToolTip.Tip="Remove selected game(s)" Click="ButtonRemoveGame_Click" Content="{StaticResource ViewRemove}"/>
 
 
-        <Button Grid.Column="2" Width="50" Margin="10 0" ToolTip.Tip="Move selected game(s) up" Click="ButtonMoveUp_Click">
+        <Button Grid.Column="2" Width="50" Margin="10 0" ToolTip.Tip="Move selected game(s) up" Click="ButtonMoveUp_Click" IsEnabled="{Binding !IsFilterActive}">
           <Button.Content>
           <Viewbox Width="24" Height="24">
               <Canvas Width="24" Height="24">
@@ -331,7 +349,7 @@
             </Viewbox>
           </Button.Content>
         </Button>
-        <Button Grid.Column="3" Width="50" Margin="0 0 10 0" ToolTip.Tip="Move selected game(s) down" Click="ButtonMoveDown_Click">
+        <Button Grid.Column="3" Width="50" Margin="0 0 10 0" ToolTip.Tip="Move selected game(s) down" Click="ButtonMoveDown_Click" IsEnabled="{Binding !IsFilterActive}">
           <Button.Content>
             <Viewbox Width="24" Height="24">
               <Canvas Width="24" Height="24">
@@ -342,7 +360,7 @@
         </Button>
 
         <CheckBox Grid.Column="4" Name="cbLockCheck" VerticalAlignment="Center" Margin="10 0" IsChecked="{Binding EnableLockCheck, Mode=TwoWay}" ToolTip.Tip="Check for locked files/folders before saving">File/Folder Lock Check</CheckBox>
-        <Button Grid.Column="5" Margin="10 0" Padding="0 10" FontWeight="Bold" Click="ButtonSaveChanges_Click" ToolTip.Tip="Save changes to SD card">Save Changes</Button>
+        <Button Grid.Column="5" Margin="10 0" Padding="0 10" FontWeight="Bold" Click="ButtonSaveChanges_Click" ToolTip.Tip="Save changes to SD card" IsEnabled="{Binding !IsFilterActive}">Save Changes</Button>
         <Button Grid.Column="6" Margin="0 0 5 0" Padding="10 10" Click="ButtonUndo_Click" ToolTip.Tip="Undo last change"
                 IsEnabled="{Binding Manager.UndoManager.CanUndo}">Undo</Button>
         <Button Grid.Column="7" Margin="5 0 10 0" Padding="10 10" Click="ButtonRedo_Click" ToolTip.Tip="Redo last change"

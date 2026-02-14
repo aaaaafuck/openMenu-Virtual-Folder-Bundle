@@ -70,7 +70,10 @@ namespace GDMENUCardManager
                 {
                     Manager.sdPath = null;
                 }
-                Filter = null;
+                if (IsFilterActive)
+                    ClearFilterFromGrid();
+                else
+                    Filter = null;
                 RaisePropertyChanged();
                 RaisePropertyChanged(nameof(HasSdPath));
             }
@@ -183,6 +186,16 @@ namespace GDMENUCardManager
             set { _Filter = value; RaisePropertyChanged(); }
         }
 
+        private bool _IsFilterActive;
+        public bool IsFilterActive
+        {
+            get { return _IsFilterActive; }
+            set { _IsFilterActive = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(IsNotFilterActive)); }
+        }
+        public bool IsNotFilterActive => !IsFilterActive;
+
+        private string _activeFilterText;
+
         public bool IsArtworkEnabled
         {
             get { return !Manager.ArtworkDisabled; }
@@ -251,6 +264,9 @@ namespace GDMENUCardManager
                 TempFolder = Path.GetTempPath();
 
             Title = "GD MENU Card Manager " + Constants.Version;
+
+            // Restore window position and size from config
+            RestoreWindowBounds();
 
             //showAllDrives = true;
 
@@ -347,7 +363,10 @@ namespace GDMENUCardManager
             if (IsBusy)
                 e.Cancel = true;
             else
+            {
                 Manager.ItemList.CollectionChanged -= ItemList_CollectionChanged;//release events
+                SaveWindowBounds();
+            }
         }
 
         private void RaisePropertyChanged([CallerMemberName] string propertyName = "")
@@ -735,9 +754,9 @@ namespace GDMENUCardManager
                 var normalized = Path.GetFullPath(TempFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
                 var normalizedDefault = Path.GetFullPath(systemDefault.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
                 if (string.Equals(normalized, normalizedDefault, StringComparison.OrdinalIgnoreCase))
-                    config.AppSettings.Settings["TempFolder"].Value = "";
+                    SetOrAddSetting(config, "TempFolder", "");
                 else
-                    config.AppSettings.Settings["TempFolder"].Value = TempFolder;
+                    SetOrAddSetting(config, "TempFolder", TempFolder);
                 config.Save(System.Configuration.ConfigurationSaveMode.Modified);
                 ConfigurationManager.RefreshSection("appSettings");
             }
@@ -749,7 +768,7 @@ namespace GDMENUCardManager
             try
             {
                 var config = ConfigurationManager.OpenExeConfiguration(System.Configuration.ConfigurationUserLevel.None);
-                config.AppSettings.Settings["LockCheck"].Value = Manager.EnableLockCheck.ToString();
+                SetOrAddSetting(config, "LockCheck", Manager.EnableLockCheck.ToString());
                 config.Save(System.Configuration.ConfigurationSaveMode.Modified);
                 ConfigurationManager.RefreshSection("appSettings");
             }
@@ -759,12 +778,84 @@ namespace GDMENUCardManager
             }
         }
 
+        private void RestoreWindowBounds()
+        {
+            try
+            {
+                if (double.TryParse(ConfigurationManager.AppSettings["WindowLeft"], out double left)
+                    && double.TryParse(ConfigurationManager.AppSettings["WindowTop"], out double top)
+                    && double.TryParse(ConfigurationManager.AppSettings["WindowWidth"], out double width)
+                    && double.TryParse(ConfigurationManager.AppSettings["WindowHeight"], out double height))
+                {
+                    // Validate saved size against minimums
+                    if (width < MinWidth) width = MinWidth;
+                    if (height < MinHeight) height = MinHeight;
 
+                    // Check that at least part of the window is visible on some screen
+                    bool isOnScreen = false;
+                    foreach (var screen in System.Windows.Forms.Screen.AllScreens)
+                    {
+                        var bounds = screen.WorkingArea;
+                        if (left + width > bounds.Left && left < bounds.Right
+                            && top + height > bounds.Top && top < bounds.Bottom)
+                        {
+                            isOnScreen = true;
+                            break;
+                        }
+                    }
+
+                    if (isOnScreen)
+                    {
+                        WindowStartupLocation = WindowStartupLocation.Manual;
+                        Left = left;
+                        Top = top;
+                        Width = width;
+                        Height = height;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private static void SetOrAddSetting(System.Configuration.Configuration config, string key, string value)
+        {
+            if (config.AppSettings.Settings[key] != null)
+                config.AppSettings.Settings[key].Value = value;
+            else
+                config.AppSettings.Settings.Add(key, value);
+        }
+
+        private void SaveWindowBounds()
+        {
+            try
+            {
+                var config = ConfigurationManager.OpenExeConfiguration(System.Configuration.ConfigurationUserLevel.None);
+
+                // Save normal (non-maximized) bounds
+                var bounds = WindowState == WindowState.Normal
+                    ? new Rect(Left, Top, Width, Height)
+                    : RestoreBounds;
+
+                SetOrAddSetting(config, "WindowLeft", bounds.Left.ToString());
+                SetOrAddSetting(config, "WindowTop", bounds.Top.ToString());
+                SetOrAddSetting(config, "WindowWidth", bounds.Width.ToString());
+                SetOrAddSetting(config, "WindowHeight", bounds.Height.ToString());
+                config.Save(System.Configuration.ConfigurationSaveMode.Modified);
+                ConfigurationManager.RefreshSection("appSettings");
+            }
+            catch { }
+        }
 
         void IDropTarget.DragOver(IDropInfo dropInfo)
         {
             if (dropInfo == null)
                 return;
+
+            if (IsFilterActive)
+            {
+                dropInfo.Effects = System.Windows.DragDropEffects.None;
+                return;
+            }
 
             DragDropHandler.DragOver(dropInfo);
         }
@@ -772,6 +863,9 @@ namespace GDMENUCardManager
         async void IDropTarget.Drop(IDropInfo dropInfo)
         {
             if (dropInfo == null)
+                return;
+
+            if (IsFilterActive)
                 return;
 
             IsBusy = true;
@@ -822,6 +916,8 @@ namespace GDMENUCardManager
 
         private async void ButtonSaveChanges_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             await Save();
         }
 
@@ -947,6 +1043,8 @@ namespace GDMENUCardManager
 
         private async void ButtonSort_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             var result = MessageBox.Show(
                 "Your disc images will be automatically sorted in alphanumeric order based on a combination of Folder and Title.\n\nDo you want to continue?",
                 "Sort List",
@@ -1038,6 +1136,8 @@ namespace GDMENUCardManager
 
         private void ButtonBatchFolderRename_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             if (Manager.ItemList.Count == 0)
                 return;
 
@@ -1674,6 +1774,16 @@ namespace GDMENUCardManager
                         Manager.ItemList.Remove(item);
 
                     Manager.UndoManager.RecordChange(undoOp);
+
+                    if (IsFilterActive)
+                    {
+                        var view = System.Windows.Data.CollectionViewSource.GetDefaultView(Manager.ItemList);
+                        if (!view.Cast<object>().Any())
+                        {
+                            MessageBox.Show("Nothing to show for the currently applied filter.", "Filter", MessageBoxButton.OK, MessageBoxImage.Information);
+                            ClearFilterFromGrid();
+                        }
+                    }
                 }
 
                 e.Handled = true;
@@ -1682,6 +1792,8 @@ namespace GDMENUCardManager
 
         private async void ButtonAddGames_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             using (var dialog = new System.Windows.Forms.OpenFileDialog())
             {
                 dialog.Filter = fileFilterList;
@@ -1724,6 +1836,16 @@ namespace GDMENUCardManager
                 Manager.ItemList.Remove((GdItem)dg1.SelectedItems[0]);
 
             Manager.UndoManager.RecordChange(undoOp);
+
+            if (IsFilterActive)
+            {
+                var view = System.Windows.Data.CollectionViewSource.GetDefaultView(Manager.ItemList);
+                if (!view.Cast<object>().Any())
+                {
+                    MessageBox.Show("Nothing to show for the currently applied filter.", "Filter", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ClearFilterFromGrid();
+                }
+            }
         }
 
         private async void ButtonSearch_Click(object sender, RoutedEventArgs e)
@@ -1743,14 +1865,19 @@ namespace GDMENUCardManager
             }
 
             if (dg1.SelectedIndex == -1 || !searchInGrid(dg1.SelectedIndex))
-                searchInGrid(0);
+            {
+                if (!searchInGrid(0))
+                    MessageBox.Show("No matches found.", "Search", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private bool searchInGrid(int start)
         {
-            for (int i = start; i < Manager.ItemList.Count; i++)
+            var visibleItems = System.Windows.Data.CollectionViewSource.GetDefaultView(Manager.ItemList).Cast<GdItem>().ToList();
+
+            for (int i = start; i < visibleItems.Count; i++)
             {
-                var item = Manager.ItemList[i];
+                var item = visibleItems[i];
                 if (dg1.SelectedItem != item && Manager.SearchInItem(item, Filter))
                 {
                     dg1.SelectedItem = item;
@@ -1759,6 +1886,74 @@ namespace GDMENUCardManager
                 }
             }
             return false;
+        }
+
+        private bool FilterInItem(GdItem item, string text)
+        {
+            if (item.Name?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) >= 0)
+                return true;
+            if (item.ProductNumber?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) >= 0)
+                return true;
+            return false;
+        }
+
+        private void ApplyFilterToGrid(string filterText)
+        {
+            _activeFilterText = filterText;
+            Filter = filterText;
+            IsFilterActive = true;
+
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(Manager.ItemList);
+            view.Filter = obj => obj is GdItem item && FilterInItem(item, filterText);
+        }
+
+        private void ClearFilterFromGrid()
+        {
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(Manager.ItemList);
+            view.Filter = null;
+
+            _activeFilterText = null;
+            Filter = null;
+            IsFilterActive = false;
+        }
+
+        private async void ButtonFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (Manager.ItemList.Count == 0 || string.IsNullOrWhiteSpace(Filter))
+                return;
+
+            var filterText = Filter;
+
+            try
+            {
+                IsBusy = true;
+                await Manager.LoadIpAll();
+                IsBusy = false;
+            }
+            catch (ProgressWindowClosedException) { }
+
+            bool hasMatches = Manager.ItemList.Any(item => FilterInItem(item, filterText));
+            if (!hasMatches)
+            {
+                MessageBox.Show("No matches found.", "Filter", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            ApplyFilterToGrid(filterText);
+
+            Manager.UndoManager.RecordChange(new FilterApplyOperation
+            {
+                FilterText = filterText,
+                ApplyFilter = text => ApplyFilterToGrid(text),
+                ClearFilter = () => ClearFilterFromGrid()
+            });
+        }
+
+        private void ButtonFilterReset_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsFilterActive)
+                return;
+            ClearFilterFromGrid();
         }
 
         private void FolderComboBox_GotFocus(object sender, RoutedEventArgs e)

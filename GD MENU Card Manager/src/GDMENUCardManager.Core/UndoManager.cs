@@ -488,4 +488,23 @@ namespace GDMENUCardManager.Core
             }
         }
     }
+
+    public class FilterApplyOperation : UndoOperation
+    {
+        public string FilterText { get; set; }
+        public Action<string> ApplyFilter { get; set; }
+        public Action ClearFilter { get; set; }
+
+        public override string Description => $"Filter: {FilterText}";
+
+        public override void Undo()
+        {
+            ClearFilter?.Invoke();
+        }
+
+        public override void Redo()
+        {
+            ApplyFilter?.Invoke(FilterText);
+        }
+    }
 }

@@ -60,7 +60,10 @@ namespace GDMENUCardManager
                 {
                     Manager.sdPath = null;
                 }
-                Filter = null;
+                if (IsFilterActive)
+                    ClearFilterFromGrid();
+                else
+                    Filter = null;
                 RaisePropertyChanged();
                 RaisePropertyChanged(nameof(HasSdPath));
             }
@@ -114,6 +117,15 @@ namespace GDMENUCardManager
             get { return _Filter; }
             set { _Filter = value; RaisePropertyChanged(); }
         }
+
+        private bool _IsFilterActive;
+        public bool IsFilterActive
+        {
+            get { return _IsFilterActive; }
+            set { _IsFilterActive = value; RaisePropertyChanged(); }
+        }
+
+        private string _activeFilterText;
 
         public bool IsArtworkEnabled
         {
@@ -227,7 +239,10 @@ namespace GDMENUCardManager
                 TempFolder = Path.GetTempPath();
 
             Title = "GD MENU Card Manager " + Constants.Version;
-            
+
+            // Restore window position and size from config
+            RestoreWindowBounds();
+
             //showAllDrives = true;
 
             DataContext = this;
@@ -554,6 +569,16 @@ namespace GDMENUCardManager
         private void ItemList_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             updateTotalSize();
+
+            // If filter is active, refresh the filtered view (e.g., after undo re-inserts items)
+            if (IsFilterActive && _activeFilterText != null)
+            {
+                var filteredItems = Manager.ItemList.Where(item => FilterInItem(item, _activeFilterText)).ToList();
+                if (filteredItems.Count == 0)
+                    ClearFilterFromGrid();
+                else
+                    dg1.Items = filteredItems;
+            }
         }
 
         private void MainWindow_Closing(object sender, CancelEventArgs e)
@@ -561,7 +586,10 @@ namespace GDMENUCardManager
             if (IsBusy)
                 e.Cancel = true;
             else
+            {
                 Manager.ItemList.CollectionChanged -= ItemList_CollectionChanged;//release events
+                SaveWindowBounds();
+            }
         }
 
         private void RaisePropertyChanged([CallerMemberName] string propertyName = "")
@@ -998,9 +1026,9 @@ namespace GDMENUCardManager
                 var normalized = Path.GetFullPath(TempFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
                 var normalizedDefault = Path.GetFullPath(systemDefault.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
                 if (string.Equals(normalized, normalizedDefault, StringComparison.OrdinalIgnoreCase))
-                    config.AppSettings.Settings["TempFolder"].Value = "";
+                    SetOrAddSetting(config, "TempFolder", "");
                 else
-                    config.AppSettings.Settings["TempFolder"].Value = TempFolder;
+                    SetOrAddSetting(config, "TempFolder", TempFolder);
                 config.Save(System.Configuration.ConfigurationSaveMode.Modified);
                 ConfigurationManager.RefreshSection("appSettings");
             }
@@ -1012,7 +1040,7 @@ namespace GDMENUCardManager
             try
             {
                 var config = ConfigurationManager.OpenExeConfiguration(System.Configuration.ConfigurationUserLevel.None);
-                config.AppSettings.Settings["LockCheck"].Value = Manager.EnableLockCheck.ToString();
+                SetOrAddSetting(config, "LockCheck", Manager.EnableLockCheck.ToString());
                 config.Save(System.Configuration.ConfigurationSaveMode.Modified);
                 ConfigurationManager.RefreshSection("appSettings");
             }
@@ -1022,8 +1050,73 @@ namespace GDMENUCardManager
             }
         }
 
+        private void RestoreWindowBounds()
+        {
+            try
+            {
+                if (double.TryParse(ConfigurationManager.AppSettings["WindowLeft"], out double left)
+                    && double.TryParse(ConfigurationManager.AppSettings["WindowTop"], out double top)
+                    && double.TryParse(ConfigurationManager.AppSettings["WindowWidth"], out double width)
+                    && double.TryParse(ConfigurationManager.AppSettings["WindowHeight"], out double height))
+                {
+                    // Validate saved size against minimums
+                    if (width < MinWidth) width = MinWidth;
+                    if (height < MinHeight) height = MinHeight;
+
+                    // Check that at least part of the window is visible on some screen
+                    bool isOnScreen = false;
+                    foreach (var screen in Screens.All)
+                    {
+                        var bounds = screen.WorkingArea;
+                        if (left + width > bounds.X && left < bounds.X + bounds.Width
+                            && top + height > bounds.Y && top < bounds.Y + bounds.Height)
+                        {
+                            isOnScreen = true;
+                            break;
+                        }
+                    }
+
+                    if (isOnScreen)
+                    {
+                        WindowStartupLocation = WindowStartupLocation.Manual;
+                        Position = new Avalonia.PixelPoint((int)left, (int)top);
+                        Width = width;
+                        Height = height;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private static void SetOrAddSetting(System.Configuration.Configuration config, string key, string value)
+        {
+            if (config.AppSettings.Settings[key] != null)
+                config.AppSettings.Settings[key].Value = value;
+            else
+                config.AppSettings.Settings.Add(key, value);
+        }
+
+        private void SaveWindowBounds()
+        {
+            try
+            {
+                var config = ConfigurationManager.OpenExeConfiguration(System.Configuration.ConfigurationUserLevel.None);
+
+                // Save current bounds (Avalonia doesn't have RestoreBounds, use current values)
+                SetOrAddSetting(config, "WindowLeft", Position.X.ToString());
+                SetOrAddSetting(config, "WindowTop", Position.Y.ToString());
+                SetOrAddSetting(config, "WindowWidth", Width.ToString());
+                SetOrAddSetting(config, "WindowHeight", Height.ToString());
+                config.Save(System.Configuration.ConfigurationSaveMode.Modified);
+                ConfigurationManager.RefreshSection("appSettings");
+            }
+            catch { }
+        }
+
         private async void WindowDrop(object sender, DragEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             if (Manager.sdPath == null)
                 return;
 
@@ -1076,6 +1169,8 @@ namespace GDMENUCardManager
 
         private async void ButtonSaveChanges_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             await Save();
         }
 
@@ -1188,6 +1283,8 @@ namespace GDMENUCardManager
 
         private async void ButtonSort_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             var result = await MessageBoxManager.GetMessageBoxStandardWindow(
                 "Sort List",
                 "Your disc images will be automatically sorted in alphanumeric order based on a combination of Folder and Title.\n\nDo you want to continue?",
@@ -1810,6 +1907,22 @@ namespace GDMENUCardManager
                         Manager.ItemList.Remove(item);
 
                     Manager.UndoManager.RecordChange(undoOp);
+
+                    if (IsFilterActive)
+                    {
+                        var filteredItems = Manager.ItemList.Where(item => FilterInItem(item, _activeFilterText)).ToList();
+                        if (filteredItems.Count == 0)
+                        {
+                            await MessageBoxManager.GetMessageBoxStandardWindow("Filter",
+                                "Nothing to show for the currently applied filter.",
+                                icon: MessageBox.Avalonia.Enums.Icon.Info).ShowDialog(this);
+                            ClearFilterFromGrid();
+                        }
+                        else
+                        {
+                            dg1.Items = filteredItems;
+                        }
+                    }
                 }
 
                 e.Handled = true;
@@ -1818,6 +1931,8 @@ namespace GDMENUCardManager
 
         private async void ButtonAddGames_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             var fileDialog = new OpenFileDialog
             {
                 Title = "Select File(s)",
@@ -1842,7 +1957,7 @@ namespace GDMENUCardManager
             }
         }
 
-        private void ButtonRemoveGame_Click(object sender, RoutedEventArgs e)
+        private async void ButtonRemoveGame_Click(object sender, RoutedEventArgs e)
         {
             var selectedItems = dg1.SelectedItems.Cast<GdItem>().ToArray();
             if (selectedItems.Length == 0)
@@ -1859,10 +1974,28 @@ namespace GDMENUCardManager
                 Manager.ItemList.Remove(item);
 
             Manager.UndoManager.RecordChange(undoOp);
+
+            if (IsFilterActive)
+            {
+                var filteredItems = Manager.ItemList.Where(item => FilterInItem(item, _activeFilterText)).ToList();
+                if (filteredItems.Count == 0)
+                {
+                    await MessageBoxManager.GetMessageBoxStandardWindow("Filter",
+                        "Nothing to show for the currently applied filter.",
+                        icon: MessageBox.Avalonia.Enums.Icon.Info).ShowDialog(this);
+                    ClearFilterFromGrid();
+                }
+                else
+                {
+                    dg1.Items = filteredItems;
+                }
+            }
         }
 
         private void ButtonMoveUp_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             var selectedItems = dg1.SelectedItems.Cast<GdItem>().ToArray();
 
             if (!selectedItems.Any())
@@ -1902,6 +2035,8 @@ namespace GDMENUCardManager
 
         private void ButtonMoveDown_Click(object sender, RoutedEventArgs e)
         {
+            if (IsFilterActive)
+                return;
             var selectedItems = dg1.SelectedItems.Cast<GdItem>().ToArray();
 
             if (!selectedItems.Any())
@@ -1955,14 +2090,21 @@ namespace GDMENUCardManager
             }
 
             if (dg1.SelectedIndex == -1 || !searchInGrid(dg1.SelectedIndex))
-                searchInGrid(0);
+            {
+                if (!searchInGrid(0))
+                    await MessageBoxManager.GetMessageBoxStandardWindow("Search", "No matches found.",
+                        icon: MessageBox.Avalonia.Enums.Icon.Info).ShowDialog(this);
+            }
         }
 
         private bool searchInGrid(int start)
         {
-            for (int i = start; i < Manager.ItemList.Count; i++)
+            var visibleItems = (dg1.Items as System.Collections.IEnumerable)?.Cast<GdItem>().ToList()
+                               ?? Manager.ItemList.ToList();
+
+            for (int i = start; i < visibleItems.Count; i++)
             {
-                var item = Manager.ItemList[i];
+                var item = visibleItems[i];
                 if (dg1.SelectedItem != item && Manager.SearchInItem(item, Filter))
                 {
                     dg1.SelectedItem = item;
@@ -1971,6 +2113,78 @@ namespace GDMENUCardManager
                 }
             }
             return false;
+        }
+
+        private bool FilterInItem(GdItem item, string text)
+        {
+            if (item.Name?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) >= 0)
+                return true;
+            if (item.ProductNumber?.IndexOf(text, 0, StringComparison.InvariantCultureIgnoreCase) >= 0)
+                return true;
+            return false;
+        }
+
+        private void ApplyFilterToGrid(string filterText)
+        {
+            _activeFilterText = filterText;
+            Filter = filterText;
+            IsFilterActive = true;
+
+            var filteredItems = Manager.ItemList.Where(item => FilterInItem(item, filterText)).ToList();
+            dg1.Items = filteredItems;
+
+            DragDrop.SetAllowDrop(this, false);
+        }
+
+        private void ClearFilterFromGrid()
+        {
+            dg1.Items = Manager.ItemList;
+
+            _activeFilterText = null;
+            Filter = null;
+            IsFilterActive = false;
+
+            DragDrop.SetAllowDrop(this, !IsBusy);
+        }
+
+        private async void ButtonFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (Manager.ItemList.Count == 0 || string.IsNullOrWhiteSpace(Filter))
+                return;
+
+            var filterText = Filter;
+
+            try
+            {
+                IsBusy = true;
+                await Manager.LoadIpAll();
+                IsBusy = false;
+            }
+            catch (ProgressWindowClosedException) { }
+
+            bool hasMatches = Manager.ItemList.Any(item => FilterInItem(item, filterText));
+            if (!hasMatches)
+            {
+                await MessageBoxManager.GetMessageBoxStandardWindow("Filter", "No matches found.",
+                    icon: MessageBox.Avalonia.Enums.Icon.Info).ShowDialog(this);
+                return;
+            }
+
+            ApplyFilterToGrid(filterText);
+
+            Manager.UndoManager.RecordChange(new FilterApplyOperation
+            {
+                FilterText = filterText,
+                ApplyFilter = text => ApplyFilterToGrid(text),
+                ClearFilter = () => ClearFilterFromGrid()
+            });
+        }
+
+        private void ButtonFilterReset_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsFilterActive)
+                return;
+            ClearFilterFromGrid();
         }
 
 

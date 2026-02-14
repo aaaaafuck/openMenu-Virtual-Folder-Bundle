@@ -130,7 +130,7 @@ load_pvr_from_buffer(const void* input, uint32_t* w, uint32_t* h, uint32_t* txrF
 void*
 pvr_get_internal_buffer(void) {
     if (!_internal_buf) {
-        _internal_buf = malloc(512 * 512 * 2);
+        _internal_buf = malloc(512 * 512 * 2 + PVR_HDR_SIZE);
         if (!_internal_buf) {
             /* printf("%s no free memory\n", __func__); */
             return NULL;

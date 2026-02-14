@@ -2512,7 +2512,7 @@ draw_saveload_tr(void) {
          * = 13 content lines + title */
         int content_lines = 8 + 1 + 4;
 
-        const int width = 360;
+        const int width = 352;
         /* Match Credits formula: (content + 1) * line_height + extra padding */
         const int height = (content_lines + 1) * line_height + 4;
         const int x = (640 / 2) - (width / 2);

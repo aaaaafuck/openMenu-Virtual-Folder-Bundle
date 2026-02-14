@@ -37,18 +37,20 @@ To accommodate the new openMenu, a modified version of [GD MENU Card Manager](ht
     - [Reordering Games](#reordering-games)
     - [Editing Game Information](#editing-game-information)
     - [Virtual Folders (openMenu Only)](#virtual-folders-openmenu-only)
-      - [Batch Folder Move and Renaming (Windows Only)](#batch-folder-move-and-renaming-windows-only)
+      - [Batch Folder Move and Rename (Windows Only)](#batch-folder-move-and-rename-windows-only)
       - [Batch Folder Assignment](#batch-folder-assignment)
     - [Multi-Disc Games](#multi-disc-games)
     - [Disc Types (openMenu Only)](#disc-types-openmenu-only)
-    - [Searching](#searching)
+    - [Searching and Filtering](#searching-and-filtering)
     - [Sorting](#sorting)
     - [Undo and Redo](#undo-and-redo)
     - [Saving Changes](#saving-changes)
     - [Keyboard Shortcuts](#keyboard-shortcuts)
   - [Disc Image Options](#disc-image-options)
   - [Application Settings](#application-settings)
-    - [Temporary Folder](#temporary-folder)
+    - [SD Drive](#sd-drive)
+    - [Temp. Folder](#temp-folder)
+    - [Menu Type](#menu-type)
 - [openMenu Usage](#openmenu-usage)
   - [VGA and Region Patching](#vga-and-region-patching)
   - [Using Cheats](#using-cheats)
@@ -86,7 +88,7 @@ To accommodate the new openMenu, a modified version of [GD MENU Card Manager](ht
 
 ## Current Version
 
-The latest version of **openMenu Virtual Folder Bundle** is [1.3-ateam](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/releases/tag/1.3-ateam).
+The latest version of **openMenu Virtual Folder Bundle** is [1.4-ateam](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/releases/tag/1.4-ateam).
 
 ## Roadmap Ideas
 
@@ -99,6 +101,17 @@ The latest version of **openMenu Virtual Folder Bundle** is [1.3-ateam](https://
 
 ## Changelog
 
+- **Version 1.4-ateam (2026-02-14)**
+  - **openMenu**
+    - Fixed crash when launching games or exiting to BIOS while using "DeepDream" themes (see [Issue 98](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/98)).
+    - CodeBreaker cheat database updated to include easy-to-find deflicker codes (see [Issue 97](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/97)).
+    - Save/Load window's width tweaked, was too wide (see [Issue 99](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/99)).
+    - Keyboard Shift+\<character\> will not erroneously trigger menu action assigned to said character (see [Issue 102](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/102)).
+  - **GD MENU Card Manager**
+    - Games List table can now be filtered (see [Issue 101](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/101)).
+    - Section headings in help/about window now automatically line break (see [Issue 100](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/100)).
+    - Window size and position remembered on next launch (see [Issue 103](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/103)).
+    - Margins and spacing in Settings section made uniform, gdMenu/openMenu radio buttons now labeled "Menu Type" (see [Issue 104](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/104)).
 - **Version 1.3-ateam (2026-02-13)**
   - **openMenu**
     - Support added for saving/loading settings to/from serial SD (see [Issue 84](https://github.com/DerekPascarella/openMenu-Virtual-Folder-Bundle/issues/84)).
@@ -215,6 +228,8 @@ The latest version of **openMenu Virtual Folder Bundle** is [1.3-ateam](https://
   - Colin L.
   - PlayerGameSK
   - Virtua Shenmue
+  - Nachosonic
+  - Patrick Graham
 - **Special Thanks**
   - mrneo240 for his original work on openMenu
   - megavolt85 for forking openMenu and adding new features
@@ -442,7 +457,7 @@ When using openMenu mode, the **Folder** column allows organizing games into a h
 - Up to eight levels of nested subfolders are supported.
 - Maximum of 1024 virtual folders per SD card.
 
-##### Batch Folder Move and Renaming (Windows Only)
+##### Batch Folder Move and Rename (Windows Only)
 
 By clicking the **Batch Folder Move and Rename** button at the top right of the **Games List** table, users can perform bulk folder rename and move operations, affecting all associated disc images.
 
@@ -479,7 +494,7 @@ The **Type** column categorizes disc images:
 | **Other** | Non-game discs (audio CDs, utilities). These skip the full boot sequence and return directly to the BIOS. |
 | **PSX** | PlayStation disc images for use with either the Bleem! or Bloom emulators (see the [PlayStation Emulator Feature](#playstation-emulator-feature) section). |
 
-#### Searching
+#### Searching and Filtering
 
 Enter a search term in the search box and click **Search** (or press Enter). The search checks:
 
@@ -524,7 +539,7 @@ Before modifying files, the application checks if any SD card files or folders a
 
 This prevents SD card corruption from concurrent file access.
 
-Users can choose to forego this operation by unchecking the **File/Folder Lock Check** option, a setting that will be remembered the next time the application is launched.
+Users can choose to forgo this operation by unchecking the **File/Folder Lock Check** option, a setting that will be remembered the next time the application is launched.
 
 **Save Operations**
 
@@ -577,7 +592,11 @@ Click **Save** to apply changes or **Cancel** to discard them.
 
 ### Application Settings
 
-#### Temporary Folder
+#### SD Drive
+
+Select SD card from the **SD Drive** dropdown. The application will auto-detect drives containing `GDEMU.INI` or a folder named `01`. Alternatively, click the folder browse icon to the left of the dropdown to select any custom path to be treated as if it were a GDEMU SD card.
+
+#### Temp. Folder
 
 GD MENU Card Manager uses a temporary folder for operations like decompressing archives and converting disc images. By default, it uses the system's temp folder, but users can specify a custom location:
 
@@ -586,6 +605,12 @@ GD MENU Card Manager uses a temporary folder for operations like decompressing a
 3. The setting is saved to `GDMENUCardManager.TempFolder.config` in the application folder and remembered for future sessions.
 
 This is useful if a user's system drive has limited space or if a user prefers to use a faster drive for temporary operations.
+
+#### Menu Type
+
+Choose a **Menu Type**:
+- **gdMenu** - Traditional Scroll mode menu interface.
+- **openMenu** - Full-featured menu with virtual folder support.
 
 ## openMenu Usage
 
